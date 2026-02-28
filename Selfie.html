@@ -18,6 +18,8 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
   <style data-selfie-file="true" data-name="outliner.css">
 
 :root {
@@ -547,7 +549,28 @@ html, body {
 }
 .slotToggle:hover{ border-color:#5a606a; }
 
-  </style>
+  
+
+.helpDoc{
+  padding: 10px;
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  background: var(--field-bg);
+  color: var(--text);
+  font-family: var(--sans);
+}
+.helpDoc h1, .helpDoc h2, .helpDoc h3{
+  font-family: var(--sans);
+  margin: 10px 0 6px;
+}
+.helpDoc h1{ font-size: 18px; }
+.helpDoc h2{ font-size: 14px; color: var(--muted); }
+.helpDoc ul{ margin: 6px 0 10px 18px; }
+.helpDoc code{ font-family: var(--mono); background: rgba(0,0,0,.08); padding: 1px 4px; border-radius: 6px; }
+@media (prefers-color-scheme: dark){
+  .helpDoc code{ background: rgba(255,255,255,.08); }
+}
+</style>
 
   <style data-selfie-file="true" data-name="selfie_shell.css">
 
@@ -688,7 +711,29 @@ html, body {
   border-color: var(--accent);
   background: rgba(31,111,235,.12);
 }
-  </style>
+  
+
+.vmItem__actions{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  justify-content:flex-end;
+}
+
+.vmIconBtn{
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--stroke);
+  background: rgba(0,0,0,.10);
+  color: var(--text);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 22px;
+}
+.vmIconBtn:hover{ border-color: var(--accent); }
+</style>
 </head>
 <body>
   <div id="toolbar" class="toolbar">
@@ -707,6 +752,7 @@ html, body {
       <button id="btnNewObject" class="btn">New object</button>
       <button id="btnSaveImage" class="btn">Save image</button>
       <button id="btnSaveSystem" class="btn">Save system</button>
+      <button id="btnHelpTop" class="btn">Help</button>
       <button id="btnToggleLines" class="btn">Hide lines</button>
       <button id="btnTheme" class="btn">Theme: system</button>
     </div>
@@ -2635,35 +2681,36 @@ function blockValueSelectorForArity(n) {
 
 
   function showHelp() {
-    const text = [
-      'Self-like Outliners — Help',
-      '',
-      'Windows',
-      '  • Drag header to move; resize from bottom-right.',
-      '  • Click a window to focus (bring to front).',
-      '',
-      'References / lines',
-      '  • Click the :: handle on a slot to open the referenced object and toggle its line.',
-      '  • Drag the :: handle to retarget the slot (drop on another object header/value).',
-      '  • Shift-click :: on a block literal opens the literal *template* instead of the instantiated closure.',
-      '  • Toolbar: Hide lines toggles all lines.',
-      '',
-      'Editing slot values',
-      "  • Numbers: 42 | Symbols: #foo | Object refs: @3 | Strings: 'text' | empty => null",
-      '',
-      'Source language (for methods/evaluator)',
-      '  • Literals: numbers, strings, blocks [ ... ] or [:x :y | ... ]',
-      '  • Messages: unary (x size), binary (x + y), keyword (obj at: i Put: v)',
-      '  • Temps: | t u |  and assignment: t := expr',
-      "  • Return: ^ expr   Statements: '.'",
-      '',
-      'Bytecode ops',
-      '  • pushSelf | send <selector> [argc] | resend <selector> [argc] | dup | pop | returnTop',
-      '',
-      'Slot controls',
-      '  • Use the ▾/▴ arrow to show/hide slot type flags and delete.',
-    ].join('\n');
-    window.alert(text);
+    const md = `# Selfie — Help
+
+## Windows
+- Drag header to move; resize from bottom-right.
+- Click a window to focus (bring to front).
+
+## References and lines
+- Click the \`::\` handle to open the referenced object and toggle its line.
+- Drag the \`::\` handle to retarget (drop on an object header/value).
+- Shift-click \`::\` on a block literal opens the literal *template* instead of the instantiated closure.
+- Toolbar: **Hide lines** toggles all lines.
+
+## Editing slot values
+- Numbers: \`42\`  | Symbols: \`#foo\`  | Object refs: \`@3\`  | Strings: \`'text'\`  | empty ⇒ \`null\`
+
+## Source language
+- Literals: numbers, strings, blocks \`[ ... ]\` or \`[:x :y | ... ]\`
+- Messages: unary (\`x size\`), binary (\`x + y\`), keyword (\`obj at: i Put: v\`)
+- Temps: \`| t u |\` and assignment: \`t := expr\`
+- Return: \`^ expr\`  Statements: \`.\`
+
+## Bytecode
+- \`pushSelf\` | \`send <selector> [argc]\` | \`resend <selector> [argc]\` | \`primitiveSend <selector> [argc]\` | \`dup\` | \`pop\` | \`returnTop\`
+
+## Slot controls
+- Use the \`▾/▴\` toggle to show/hide slot flags and delete.
+`;
+
+    const helpDoc = { kind: 'helpDoc', label: 'Help', markdown: md };
+    Outliners.open(helpDoc, { x: 70, y: 90 });
   }
 
   function safeDescribe(value) {
@@ -3107,10 +3154,6 @@ function blockValueSelectorForArity(n) {
 
       const btnClose = el('button', { class: 'iconBtn danger' }, 'Close');
       btnClose.addEventListener('click', () => Outliners.close(this.value));
-
-      const btnHelp = el('button', { class: 'iconBtn', title: 'Help' }, '?');
-      btnHelp.addEventListener('click', () => showHelp());
-
       const btnRefresh = el('button', { class: 'iconBtn' }, 'Refresh');
       btnRefresh.addEventListener('click', () => this.render());
 
@@ -3127,12 +3170,25 @@ function blockValueSelectorForArity(n) {
 
       return el('div', { style: { display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', gap: '10px' } },
         title,
-        el('div', { class: 'header__actions' }, btnClone, btnHelp, btnRefresh, btnClose)
+        el('div', { class: 'header__actions' }, btnClone, btnRefresh, btnClose)
       );
     }
 
     _renderBody() {
       const v = this.value;
+
+      // Help document (Markdown)
+      if (v && typeof v === 'object' && v.kind === 'helpDoc') {
+        const wrap = el('div', { class: 'helpDoc' });
+        const md = String(v.markdown || '');
+        if (window.marked && typeof window.marked.parse === 'function') {
+          wrap.innerHTML = window.marked.parse(md);
+        } else {
+          wrap.appendChild(el('pre', { style: { whiteSpace: 'pre-wrap', margin: '0' } }, md));
+        }
+        return wrap;
+      }
+
 
       // Method template view
       if (v && typeof v === 'object' && v.kind === 'methodTemplate') {
@@ -3737,6 +3793,9 @@ function blockValueSelectorForArity(n) {
     Outliners.open(obj);
   });
 
+  const btnHelpTop = $('#btnHelpTop');
+  if (btnHelpTop) btnHelpTop.addEventListener('click', showHelp);
+
   
   // Theme switcher: system (default) -> dark -> light
   const btnTheme = $('#btnTheme');
@@ -4181,22 +4240,33 @@ $('#btnToggleLines').addEventListener('click', (ev) => {
         badge.className = 'vmBadge';
         badge.textContent = f.kind;
 
-        item.appendChild(name);
-        item.appendChild(badge);
+        const actions = document.createElement('div');
+        actions.className = 'vmItem__actions';
 
-        item.addEventListener('click', () => this.selectFile(f));
+        actions.appendChild(badge);
+
+        const mkBtn = (title, text, onClick) => {
+          const b = document.createElement('button');
+          b.className = 'vmIconBtn';
+          b.type = 'button';
+          b.title = title;
+          b.textContent = text;
+          b.addEventListener('click', (ev) => { ev.stopPropagation(); onClick(); });
+          return b;
+        };
 
         if (!f.isPseudo) {
-          item.addEventListener('contextmenu', (ev) => {
-            ev.preventDefault();
-            const action = prompt(`Action for ${f.name}: rename / delete / export`, 'rename');
-            if (!action) return;
-            const a = action.trim().toLowerCase();
-            if (a === 'rename') this.renameFile(f);
-            else if (a === 'delete') this.deleteFile(f);
-            else if (a === 'export') downloadText(f.el.textContent || '', f.name);
-          });
+          actions.appendChild(mkBtn('Rename', '✎', () => this.renameFile(f)));
+          actions.appendChild(mkBtn('Export', '⭳', () => downloadText(f.el.textContent || '', f.name)));
+          actions.appendChild(mkBtn('Delete', '🗑', () => this.deleteFile(f)));
+        } else {
+          actions.appendChild(mkBtn('Export HTML', '⭳', () => this.exportActive()));
         }
+
+        item.appendChild(name);
+        item.appendChild(actions);
+
+        item.addEventListener('click', () => this.selectFile(f));
 
         list.appendChild(item);
       }
