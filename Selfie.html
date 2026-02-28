@@ -1,0 +1,4373 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Selfie</title>
+
+  <!-- Code editor (external) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/eclipse.min.css">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <style data-selfie-file="true" data-name="outliner.css">
+
+:root {
+  /* System theme default: LIGHT. Dark is applied via prefers-color-scheme below.
+     You can override with data-theme="dark" / data-theme="light". */
+
+  /* Light theme: background (desktop) is darkest; edit fields are lightest. */
+  --bg: #c7ccd6;
+  --panel: #dde2ea;
+  --panel2: #d4d9e3;
+  --stroke: #aeb6c6;
+  --text: #0b1220;
+  --muted: #2b3550;
+  --accent: #1f6feb;
+  --accent-rgb: 31,111,235;
+
+  --danger: #d1242f;
+  --ok: #1a7f37;
+
+  --field-bg: #f4f6fb; /* lightest (but not white) */
+  --slot-bg: #eef2f8;
+  --btn2-bg: #edf1f7;
+  --toolbar-bg: rgba(199, 204, 214, .92);
+
+  --shadow: 0 10px 28px rgba(0,0,0,.12);
+
+  /* Slot stripe colors (theme-fitting, distinct) */
+  --stripe-data: hsla(210, 85%, 45%, .35);
+  --stripe-method: hsla(280, 75%, 55%, .35);
+  --stripe-rw: hsla(190, 80%, 40%, .35);
+  --stripe-parent: hsla(45, 90%, 45%, .35);
+  --stripe-arg: hsla(140, 70%, 40%, .35);
+  --stripe-literal: hsla(0, 80%, 50%, .35);
+  --stripe-literalBlock: hsla(25, 90%, 45%, .35);
+  --stripe-lexical: hsla(330, 80%, 50%, .35);
+
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1f22;
+    --panel: #2b2d31;
+    --panel2: #31343a;
+    --stroke: #3f434a;
+    --text: #e6e6e6;
+    --muted: #b2b2b2;
+    --accent: #8ab4f8;
+    --accent-rgb: 138,180,248;
+
+    --danger: #ff6b6b;
+    --ok: #7ee787;
+
+    --field-bg: #17181b;
+    --slot-bg: rgba(0,0,0,.12);
+    --btn2-bg: #24262b;
+    --toolbar-bg: rgba(30,31,34,.92);
+
+    --shadow: 0 12px 40px rgba(0,0,0,.4);
+
+    --stripe-data: hsla(210, 80%, 70%, .35);
+    --stripe-method: hsla(280, 80%, 72%, .45);
+    --stripe-rw: hsla(190, 80%, 60%, .45);
+    --stripe-parent: hsla(45, 90%, 60%, .45);
+    --stripe-arg: hsla(140, 70%, 55%, .45);
+    --stripe-literal: hsla(0, 80%, 65%, .45);
+    --stripe-literalBlock: hsla(25, 90%, 60%, .45);
+    --stripe-lexical: hsla(330, 80%, 65%, .45);
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: #c7ccd6;
+  --panel: #dde2ea;
+  --panel2: #d4d9e3;
+  --stroke: #aeb6c6;
+  --text: #0b1220;
+  --muted: #2b3550;
+  --accent: #1f6feb;
+  --accent-rgb: 31,111,235;
+
+  --danger: #d1242f;
+  --ok: #1a7f37;
+
+  --field-bg: #f4f6fb;
+  --slot-bg: #eef2f8;
+  --btn2-bg: #edf1f7;
+  --toolbar-bg: rgba(199, 204, 214, .92);
+
+  --shadow: 0 10px 28px rgba(0,0,0,.12);
+
+  --stripe-data: hsla(210, 85%, 45%, .35);
+  --stripe-method: hsla(280, 75%, 55%, .35);
+  --stripe-rw: hsla(190, 80%, 40%, .35);
+  --stripe-parent: hsla(45, 90%, 45%, .35);
+  --stripe-arg: hsla(140, 70%, 40%, .35);
+  --stripe-literal: hsla(0, 80%, 50%, .35);
+  --stripe-literalBlock: hsla(25, 90%, 45%, .35);
+  --stripe-lexical: hsla(330, 80%, 50%, .35);
+}
+
+:root[data-theme="dark"] {
+  --bg: #1e1f22;
+  --panel: #2b2d31;
+  --panel2: #31343a;
+  --stroke: #3f434a;
+  --text: #e6e6e6;
+  --muted: #b2b2b2;
+  --accent: #8ab4f8;
+  --accent-rgb: 138,180,248;
+
+  --danger: #ff6b6b;
+  --ok: #7ee787;
+
+  --field-bg: #17181b;
+  --slot-bg: rgba(0,0,0,.12);
+  --btn2-bg: #24262b;
+  --toolbar-bg: rgba(30,31,34,.92);
+
+  --shadow: 0 12px 40px rgba(0,0,0,.4);
+
+  --stripe-data: hsla(210, 80%, 70%, .35);
+  --stripe-method: hsla(280, 80%, 72%, .45);
+  --stripe-rw: hsla(190, 80%, 60%, .45);
+  --stripe-parent: hsla(45, 90%, 60%, .45);
+  --stripe-arg: hsla(140, 70%, 55%, .45);
+  --stripe-literal: hsla(0, 80%, 65%, .45);
+  --stripe-literalBlock: hsla(25, 90%, 60%, .45);
+  --stripe-lexical: hsla(330, 80%, 65%, .45);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+}
+
+.toolbar {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--stroke);
+  background: var(--toolbar-bg);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 9999;
+}
+
+.toolbar__left { display: flex; gap: 10px; align-items: baseline; }
+.toolbar__hint { color: var(--muted); font-size: 12px; }
+.toolbar__right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+
+.toolbar__search {
+  width: min(420px, 40vw);
+  padding: 7px 10px;
+  border: 1px solid var(--stroke);
+  background: var(--field-bg);
+  color: var(--text);
+  border-radius: 8px;
+  outline: none;
+}
+.toolbar__search:focus { border-color: var(--accent); }
+
+.btn {
+  padding: 7px 10px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.btn:hover { border-color: #5a606a; }
+.btn:active { transform: translateY(1px); }
+
+.workspace {
+  position: relative;
+  height: calc(100% - 54px);
+  overflow: hidden;
+}
+
+.linkLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1000000;
+}
+
+.linkLine {
+  fill: none;
+  stroke: rgba(var(--accent-rgb), .30);
+  stroke-width: 2;
+  stroke-linecap: round;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.45));
+}
+
+.outliner {
+  position: absolute;
+  min-width: 300px;
+  min-height: 280px;
+  width: 450px;
+  height: 420px;
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  resize: both;
+}
+
+.outliner:focus-within { border-color: var(--accent); }
+
+.outliner__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 8px 10px;
+  background: linear-gradient(180deg, var(--panel2), var(--panel));
+  border-bottom: 1px solid var(--stroke);
+  cursor: grab;
+  user-select: none;
+}
+.outliner__header:active { cursor: grabbing; }
+
+.header__title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.header__titleLine { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+
+.badge {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  padding: 2px 6px;
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  background: rgba(0,0,0,.2);
+}
+
+.objLabel {
+  font-family: var(--mono);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.objLabel[contenteditable="true"] { outline: none; border-radius: 6px; padding: 2px 4px; }
+.objLabel[contenteditable="true"]:focus { background: rgba(138,180,248,.12); }
+
+.header__kind { font-size: 12px; color: var(--muted); }
+
+.header__actions { display: flex; gap: 4px; align-items: center; }
+
+.iconBtn {
+  padding: 5px 8px;
+  font-size: 12px;
+  border: 1px solid var(--stroke);
+  background: var(--btn2-bg);
+  color: var(--text);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.iconBtn:hover { border-color: #5a606a; }
+.iconBtn.danger { border-color: rgba(255,107,107,.5); color: var(--danger); }
+
+.outliner__body {
+  flex: 1;
+  overflow: auto;
+  padding: 6px;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--mono);
+  margin: 2px 0 4px;
+}
+
+.slotList { display: flex; flex-direction: column; gap: 4px; }
+
+.slotRow {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 5px 6px 6px 12px;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  background: var(--slot-bg);
+}
+
+.slotTop {
+  display: grid;
+  grid-template-columns: 18px minmax(110px, 1.1fr) minmax(200px, 2fr) 18px;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.slotBottom {
+  display: none;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 0;
+}
+
+.slotRow[data-controls="open"] .slotBottom {
+  display: flex;
+}
+
+.slotStripe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  border-radius: 8px 0 0 8px;
+  background: var(--stripe-data);
+}
+.slotStripe[data-kind="data"] { background: var(--stripe-data); }
+.slotStripe[data-kind="method"] { background: var(--stripe-method); }
+.slotStripe[data-kind="rw"] { background: var(--stripe-rw); }
+.slotStripe[data-kind="parent"] { background: var(--stripe-parent); }
+.slotStripe[data-kind="arg"] { background: var(--stripe-arg); }
+.slotStripe[data-kind="literal"] { background: var(--stripe-literal); }
+.slotStripe[data-kind="literalBlock"] { background: var(--stripe-literalBlock); }
+.slotStripe[data-kind="lexical"] { background: var(--stripe-lexical); }
+
+
+.slotName {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 6px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.slotName[contenteditable="true"]:focus { background: rgba(138,180,248,.12); outline: none; }
+
+.slotValue { min-width: 0; display: flex; align-items: center; gap: 8px; }
+
+.slotValueChip {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  background: var(--field-bg);
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slotValueChip[contenteditable="true"] { cursor: text; border-radius: 8px; }
+.slotValueChip[contenteditable="true"]:focus { outline: none; background: rgba(138,180,248,.12); }
+
+.slotFlags { display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
+
+.flag { display: inline-flex; gap: 4px; align-items: center; font-size: 11px; color: var(--muted); font-family: var(--mono); }
+.flag input { accent-color: var(--accent); }
+
+.slotActions { display: flex; gap: 4px; justify-content: flex-end; }
+
+.smallBtn {
+  padding: 3px 7px;
+  border: 1px solid var(--stroke);
+  background: var(--btn2-bg);
+  color: var(--text);
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.smallBtn:hover { border-color: #5a606a; }
+.smallBtn.danger { color: var(--danger); border-color: rgba(255,107,107,.45); }
+
+.grip {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--stroke);
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  background: rgba(0,0,0,.2);
+  cursor: pointer;
+  user-select: none;
+}
+
+.grip[data-active="true"] {
+  border-color: var(--accent);
+  color: var(--text);
+  background: rgba(138,180,248,.15);
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  background: var(--slot-bg);
+  margin-bottom: 8px;
+}
+.kv__k { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.kv__v { font-family: var(--mono); font-size: 12px; }
+
+.codeTabs {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.tabBtn {
+  padding: 4px 8px;
+  border: 1px solid var(--stroke);
+  background: rgba(0,0,0,.18);
+  color: var(--text);
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--mono);
+}
+.tabBtn[data-active="true"] { border-color: var(--accent); background: rgba(138,180,248,.12); }
+
+.codeArea {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.codeArea textarea {
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+  border: 1px solid var(--stroke);
+  background: var(--field-bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 8px;
+  border-radius: 8px;
+  outline: none;
+}
+.codeArea textarea:focus { border-color: var(--accent); }
+
+.headerLine {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.headerInput {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--stroke);
+  background: var(--field-bg);
+  color: var(--text);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  outline: none;
+}
+.headerInput:focus { border-color: var(--accent); }
+
+.evalHint {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.toast {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  background: rgba(0,0,0,.65);
+  border: 1px solid var(--stroke);
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease;
+  max-width: min(680px, calc(100vw - 24px));
+  z-index: 1000001;
+}
+.toast.show { opacity: 1; }
+
+.dropTarget {
+  outline: 2px dashed rgba(138,180,248,.8);
+  outline-offset: 2px;
+}
+
+
+.slotToggle{
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--stroke);
+  background: rgba(0,0,0,.18);
+  color: var(--muted);
+  border-radius: 6px;
+  cursor: pointer;
+  line-height: 16px;
+  font-size: 12px;
+}
+.slotToggle:hover{ border-color:#5a606a; }
+
+  </style>
+
+  <style data-selfie-file="true" data-name="selfie_shell.css">
+
+/* Image view sizing (workspace is nested inside #imagePane) */
+#imagePane {
+  height: calc(100vh - 54px);
+  display: block;
+}
+#imagePane .workspace {
+  height: 100%;
+}
+/* Selfie VM view (file editor) */
+.vmRoot {
+  height: calc(100vh - 54px);
+  display: none;
+}
+
+.vmRoot[aria-hidden="false"] { display: grid; grid-template-columns: 320px 1fr; }
+
+.vmSidebar {
+  border-right: 1px solid var(--stroke);
+  background: rgba(0,0,0,.04);
+  display: flex;
+  flex-direction: column;
+  min-width: 260px;
+}
+
+.vmSidebar__toolbar {
+  padding: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--stroke);
+}
+
+.vmList {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vmItem {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 8px;
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  background: rgba(0,0,0,.06);
+  cursor: pointer;
+}
+
+.vmItem[data-active="true"] {
+  border-color: var(--accent);
+  background: rgba(31,111,235,.10);
+}
+
+.vmItem__name {
+  font-family: var(--mono);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vmBadge {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  color: var(--muted);
+  background: rgba(0,0,0,.10);
+}
+
+.vmEditor {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.vmEditor__toolbar {
+  padding: 10px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--stroke);
+  background: rgba(0,0,0,.02);
+}
+
+.vmEditor__title {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vmEditor__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vmEditor__body {
+  flex: 1;
+  overflow: hidden;
+  padding: 10px;
+}
+
+#fileEditor {
+  width: 100%;
+  height: 100%;
+}
+
+.CodeMirror {
+  height: 100% !important;
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+/* view switch buttons */
+.viewSwitch {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: 10px;
+}
+.viewSwitch .btn[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: rgba(31,111,235,.12);
+}
+  </style>
+</head>
+<body>
+  <div id="toolbar" class="toolbar">
+    <div class="toolbar__left">
+      <strong>Selfie</strong>
+      <div class="viewSwitch" role="group" aria-label="View switch">
+        <button id="btnViewImage" class="btn" aria-pressed="true">Image</button>
+        <button id="btnViewVM" class="btn" aria-pressed="false">VM</button>
+      </div>
+    </div>
+    <div class="toolbar__right">
+      <input id="search" class="toolbar__search" type="search" placeholder="Find object by label or id (e.g. lobby, #3)" />
+      <button id="btnOpenLobby" class="btn">Open lobby</button>
+      <button id="btnOpenGlobals" class="btn">Open globals</button>
+      <button id="btnOpenDemos" class="btn">Open demos</button>
+      <button id="btnNewObject" class="btn">New object</button>
+      <button id="btnSaveImage" class="btn">Save image</button>
+      <button id="btnSaveSystem" class="btn">Save system</button>
+      <button id="btnToggleLines" class="btn">Hide lines</button>
+      <button id="btnTheme" class="btn">Theme: system</button>
+    </div>
+  </div>
+
+  <div id="imagePane">
+    <div id="workspace" class="workspace" aria-label="Outliner workspace"></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <div id="vmRoot" class="vmRoot" aria-hidden="true">
+    <div class="vmSidebar">
+      <div class="vmSidebar__toolbar">
+        <button id="btnAddScript" class="btn">+ script</button>
+        <button id="btnAddStyle" class="btn">+ style</button>
+        <button id="btnExportAll" class="btn">Export all</button>
+      </div>
+      <div id="vmList" class="vmList" aria-label="Files"></div>
+    </div>
+
+    <div class="vmEditor">
+      <div class="vmEditor__toolbar">
+        <div id="vmEditorTitle" class="vmEditor__title">(none)</div>
+        <div class="vmEditor__actions">
+          <button id="btnFileSave" class="btn">Save</button>
+          <button id="btnFileRevert" class="btn">Revert</button>
+          <button id="btnFileExport" class="btn">Export</button>
+        </div>
+      </div>
+      <div class="vmEditor__body">
+        <textarea id="fileEditor"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Embedded system image (JSON). Filled when you "Save system". -->
+  <script id="selfie-image" type="application/json"></script>
+
+  <!-- Selfie files (scripts) -->
+  <script type="application/x-selfie-script" data-selfie-file="true" data-name="self_object_model_demo.js">
+(function (global) {
+  'use strict';
+
+  class VMError extends Error {
+    constructor(message, context) {
+      super(message);
+      this.name = 'VMError';
+      this.context = context || null;
+    }
+  }
+
+  class SelfLikeVM {
+    constructor() {
+      this._nextId = 1;
+      this.objects = new Set();
+      this._systemContext = {
+        kind: 'systemContext',
+        symbolTable: new Map(),
+        currentActivation: null,
+        activationStack: []
+      };
+      this.lobby = this._bootstrapLobby();
+    }
+
+    _bootstrapLobby() {
+      const lobby = this.newObject('lobby');
+      const traits = this.newObject('traits');
+      const globals = this.newObject('globals');
+      const systemContext = this._systemContext;
+
+      this.addSlot(lobby, 'traits', traits);
+      this.addSlot(lobby, 'globals', globals, { isParent: true });
+      this.addSlot(lobby, 'systemContext', systemContext);
+
+      const traitsObject = this.newObject('traits.object');
+      const traitsBlock = this.newObject('traits.block');
+      const traitsNumber = this.newObject('traits.number');
+      const traitsPrototype = this.newObject('traits.prototype');
+
+      this.addSlot(traits, 'object', traitsObject);
+      this.addSlot(traits, 'block', traitsBlock);
+      this.addSlot(traits, 'number', traitsNumber);
+      this.addSlot(traits, 'prototype', traitsPrototype);
+
+      // Basic inheritance shape for demo objects.
+      this.addSlot(traitsBlock, 'parent', traitsObject, { isParent: true });
+      this.addSlot(traitsNumber, 'parent', traitsObject, { isParent: true });
+      this.addSlot(traitsPrototype, 'parent', traitsObject, { isParent: true });
+
+      // A generic clone primitive message can be served by the VM; this slot is present only for readability.
+      
+const makePrimitiveMethod = (selectorName, argNames) => {
+  const argc = argNames.length;
+  const parts = ['pushSelf', 'send self'];
+  for (const a of argNames) {
+    parts.push('pushSelf');
+    parts.push(`send ${a}`);
+  }
+  parts.push(`primitiveSend ${selectorName} ${argc}`);
+  parts.push('returnTop');
+  return this.newMethodTemplate({
+    label: `primitive ${selectorName}`,
+    selectorHint: selectorName,
+    argNames,
+    bytecode: parts.join('\n')
+  });
+};
+
+// Primitives are expressed as normal methods whose bodies use primitiveSend.
+this.addSlot(traitsObject, 'clone', makePrimitiveMethod('clone', []));
+
+this.addSlot(traitsNumber, '+', makePrimitiveMethod('+', ['arg']));
+this.addSlot(traitsNumber, '-', makePrimitiveMethod('-', ['arg']));
+this.addSlot(traitsNumber, '*', makePrimitiveMethod('*', ['arg']));
+this.addSlot(traitsNumber, '/', makePrimitiveMethod('/', ['arg']));
+this.addSlot(traitsNumber, '==', makePrimitiveMethod('==', ['arg']));
+this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', []));
+
+      return lobby;
+    }
+
+    get systemContext() {
+      return this._systemContext;
+    }
+
+    intern(name) {
+      const table = this.systemContext.symbolTable;
+      if (!table.has(name)) {
+        table.set(name, { kind: 'symbol', name });
+      }
+      return table.get(name);
+    }
+
+    newObject(label) {
+      const obj = {
+        kind: 'object',
+        id: this._nextId++,
+        label: label || null,
+        slots: Object.create(null)
+      };
+      this.objects.add(obj);
+      return obj;
+    }
+
+    makeNumber(value) {
+      if (!Number.isFinite(value)) {
+        throw new VMError('Only finite numbers are supported in this demo runtime.');
+      }
+      const num = this.newObject(`Number(${value})`);
+      num.kind = 'number';
+      num.jsValue = value;
+      this.addSlot(num, 'parent', this.getSlotValue(this.getSlotValue(this.lobby, 'traits'), 'number'), { isParent: true });
+      return num;
+    }
+
+    isNumberObject(obj) {
+      return !!obj && typeof obj === 'object' && obj.kind === 'number';
+    }
+
+    unwrapNumber(obj) {
+      if (!this.isNumberObject(obj)) {
+        throw new VMError('Expected a number object.', { actual: this.describeValue(obj) });
+      }
+      return obj.jsValue;
+    }
+
+    describeValue(value) {
+      if (value == null) return String(value);
+      if (value.kind === 'number') return `Number(${value.jsValue})`;
+      if (value.kind === 'methodTemplate') return `<method ${value.label || value.selectorHint || ''}>`;
+      if (value.kind === 'blockLiteralTemplate') return `<block literal ${value.label || ''}>`;
+      if (value.kind === 'blockInstance') return `<block ${value.label || ''}>`;
+      if (value.kind === 'symbol') return `#${value.name}`;
+      if (value.kind === 'systemContext') return '<systemContext>';
+      if (value.kind === 'object') return `<object ${value.label || '#' + value.id}>`;
+      if (typeof value === 'object' && value.selector) return `<${value.kind || 'primitive'} ${value.selector}>`;
+      return String(value);
+    }
+
+    addSlot(obj, name, value, opts) {
+      const options = Object.assign({
+        isParent: false,
+        isArgument: false,
+        isLiteral: false,
+        literalKind: null
+      }, opts || {});
+      obj.slots[name] = {
+        name,
+        value,
+        isParent: !!options.isParent,
+        isArgument: !!options.isArgument,
+        isLiteral: !!options.isLiteral,
+        literalKind: options.literalKind
+      };
+      return obj;
+    }
+
+    hasSlot(obj, name) {
+      return !!(obj && obj.slots && Object.prototype.hasOwnProperty.call(obj.slots, name));
+    }
+
+    getSlot(obj, name) {
+      return this.hasSlot(obj, name) ? obj.slots[name] : null;
+    }
+
+    getSlotValue(obj, name) {
+      const slot = this.getSlot(obj, name);
+      if (!slot) throw new VMError(`Slot '${name}' not found in ${this.describeValue(obj)}.`);
+      return slot.value;
+    }
+
+    cloneObjectShallow(original, label) {
+      const clone = this.newObject(label || (original.label ? `${original.label} (clone)` : null));
+      clone.kind = original.kind;
+      if (original.kind === 'number') {
+        clone.kind = 'number';
+        clone.jsValue = original.jsValue;
+      }
+      for (const slotName of Object.keys(original.slots)) {
+        const s = original.slots[slotName];
+        this.addSlot(clone, slotName, s.value, {
+          isParent: s.isParent,
+          isArgument: s.isArgument,
+          isLiteral: s.isLiteral,
+          literalKind: s.literalKind
+        });
+      }
+      return clone;
+    }
+
+    compileBytecode(bytecode) {
+      const lines = String(bytecode || '')
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0 && !line.startsWith('//') && !line.startsWith('#'));
+
+      const instructions = [];
+      for (const line of lines) {
+        const parts = line.split(/\s+/);
+        const op = parts[0];
+        if (op === 'pushSelf' || op === 'pop' || op === 'returnTop' || op === 'dup') {
+          instructions.push({ op, source: line });
+          continue;
+        }
+        if (op === 'send' || op === 'resend' || op === 'primitiveSend' || op === 'primitiveResend') {
+          if (parts.length < 2) throw new VMError(`Missing selector in instruction '${line}'.`);
+          const selectorText = parts[1];
+          const argc = parts.length >= 3 ? Number(parts[2]) : this._inferArity(selectorText);
+          if (!Number.isInteger(argc) || argc < 0) {
+            throw new VMError(`Invalid arity in instruction '${line}'.`);
+          }
+          instructions.push({
+            op,
+            selector: this.intern(selectorText),
+            argc,
+            source: line
+          });
+          continue;
+        }
+        throw new VMError(`Unsupported bytecode instruction '${line}'.`);
+      }
+      return instructions;
+    }
+
+    _inferArity(selectorText) {
+      const colons = (selectorText.match(/:/g) || []).length;
+      if (colons > 0) return colons;
+      // In examples we pass explicit arity for binary selectors to avoid ambiguity.
+      return 0;
+    }
+
+    newMethodTemplate(spec) {
+      const cfg = Object.assign({
+        label: null,
+        argNames: [],
+        bytecode: '',
+        literals: [],
+        activationParentSlotName: 'self',
+        activationParentIsSelf: true,
+        selectorHint: null
+      }, spec || {});
+
+      const method = this.newObject(cfg.label || 'method');
+      method.kind = 'methodTemplate';
+      method.selectorHint = cfg.selectorHint || null;
+      method.bytecode = String(cfg.bytecode || '');
+      method.instructions = this.compileBytecode(method.bytecode);
+      method.argNames = cfg.argNames.slice();
+      method.activationParentSlotName = cfg.activationParentSlotName;
+      method.activationParentIsSelf = !!cfg.activationParentIsSelf;
+
+      // Parent slot of the future activation object.
+      this.addSlot(method, cfg.activationParentSlotName, null, { isParent: true, isArgument: true });
+
+      for (const argName of cfg.argNames) {
+        this.addSlot(method, argName, null, { isArgument: true });
+      }
+
+      cfg.literals.forEach((lit, index) => {
+        const slotName = lit.slotName || `literal${index + 1}`;
+        this.intern(slotName); // Symbol table contains literal slot names used by bytecode.
+        if (lit.kind === 'block') {
+          this.addSlot(method, slotName, lit.value, { isLiteral: true, literalKind: 'block' });
+        } else {
+          this.addSlot(method, slotName, lit.value, { isLiteral: true, literalKind: 'constant' });
+        }
+      });
+
+      return method;
+    }
+
+    newBlockLiteral(spec) {
+      const cfg = Object.assign({
+        label: null,
+        valueSelector: 'value',
+        argNames: [],
+        bytecode: '',
+        literals: []
+      }, spec || {});
+
+      const blockMethod = this.newMethodTemplate({
+        label: `${cfg.label || 'block'}::method`,
+        argNames: cfg.argNames,
+        bytecode: cfg.bytecode,
+        literals: cfg.literals,
+        activationParentSlotName: '(parent)',
+        activationParentIsSelf: false,
+        selectorHint: cfg.valueSelector
+      });
+
+      const blockObjectTemplate = this.newObject(`${cfg.label || 'block'}::object`);
+      blockObjectTemplate.kind = 'blockTemplateObject';
+      this.addSlot(blockObjectTemplate, 'parent', this.getSlotValue(this.getSlotValue(this.lobby, 'traits'), 'block'), { isParent: true });
+      this.addSlot(blockObjectTemplate, '(lexicalParent)', null, { isLiteral: false });
+      this.addSlot(blockObjectTemplate, cfg.valueSelector, blockMethod);
+
+      return {
+        kind: 'blockLiteralTemplate',
+        label: cfg.label || 'blockLiteral',
+        blockObjectTemplate,
+        blockMethod,
+        valueSelector: cfg.valueSelector
+      };
+    }
+
+    instantiateBlockLiteral(blockLiteralTemplate, lexicalParentActivation) {
+      const instance = this.cloneObjectShallow(blockLiteralTemplate.blockObjectTemplate, `${blockLiteralTemplate.label}::instance`);
+      instance.kind = 'blockInstance';
+      instance.blockLiteralTemplate = blockLiteralTemplate;
+      instance._lexicalParent = lexicalParentActivation;
+      if (this.hasSlot(instance, '(lexicalParent)')) {
+        instance.slots['(lexicalParent)'].value = lexicalParentActivation;
+      }
+      return instance;
+    }
+
+    _lookupSlot(startObject, selectorName) {
+      const visited = new Set();
+      const stack = [startObject];
+      while (stack.length > 0) {
+        const obj = stack.pop();
+        if (!obj || typeof obj !== 'object' || !obj.slots) continue;
+        if (visited.has(obj.id)) continue;
+        visited.add(obj.id);
+
+        if (this.hasSlot(obj, selectorName)) {
+          return { holder: obj, slot: obj.slots[selectorName] };
+        }
+
+        // Delegate via parent slots (depth-first, stable order by slot definition enumeration).
+        const parentSlots = Object.keys(obj.slots)
+          .map((name) => obj.slots[name])
+          .filter((s) => s.isParent);
+
+        for (let i = parentSlots.length - 1; i >= 0; i--) {
+          stack.push(parentSlots[i].value);
+        }
+      }
+      return null;
+    }
+
+    _resolveSlotValueForSend(slot, currentActivation) {
+      if (slot.isLiteral && slot.literalKind === 'block') {
+        return this.instantiateBlockLiteral(slot.value, currentActivation);
+      }
+      return slot.value;
+    }
+
+    send(receiver, selector, args, options) {
+      const selectorName = typeof selector === 'string' ? selector : selector.name;
+      const callArgs = Array.isArray(args) ? args : [];
+      const opts = options || {};
+
+      const found = this._lookupSlot(receiver, selectorName);
+      if (!found) {
+        throw new VMError(`Message '${selectorName}' not understood by ${this.describeValue(receiver)}.`);
+      }
+
+      const slotValue = this._resolveSlotValueForSend(found.slot, this.systemContext.currentActivation);
+      if (slotValue && slotValue.kind === 'methodTemplate') {
+        return this.invokeMethod(slotValue, receiver, callArgs, { selectorName, holder: found.holder });
+      }
+      return slotValue;
+    }
+
+    _tryPrimitiveSend(receiver, selectorName, args) {
+      // clone primitive for regular objects and blocks/numbers.
+      if (selectorName === 'clone' && args.length === 0 && receiver && receiver.kind && receiver.slots) {
+        const cloned = this.cloneObjectShallow(receiver, `${receiver.label || 'object'}::clone`);
+        if (receiver.kind === 'blockInstance') {
+          cloned.kind = 'blockInstance';
+          cloned.blockLiteralTemplate = receiver.blockLiteralTemplate;
+          cloned._lexicalParent = receiver._lexicalParent;
+        }
+        return { handled: true, value: cloned };
+      }
+
+      if (this.isNumberObject(receiver)) {
+        const a = receiver.jsValue;
+        const unary = args.length === 0;
+        const binary = args.length === 1;
+        if (selectorName === 'printString' && unary) {
+          const strObj = this.newObject(`String(${a})`);
+          strObj.kind = 'string';
+          strObj.jsValue = String(a);
+          return { handled: true, value: strObj };
+        }
+        if (binary) {
+          const b = this.unwrapNumber(args[0]);
+          switch (selectorName) {
+            case '+': return { handled: true, value: this.makeNumber(a + b) };
+            case '-': return { handled: true, value: this.makeNumber(a - b) };
+            case '*': return { handled: true, value: this.makeNumber(a * b) };
+            case '/': return { handled: true, value: this.makeNumber(a / b) };
+            case '==': return { handled: true, value: this.makeNumber(a === b ? 1 : 0) };
+            default: break;
+          }
+        }
+      }
+
+      return { handled: false, value: null };
+    }
+
+    invokeMethod(methodTemplate, messageReceiver, args, meta) {
+      const activation = this.cloneObjectShallow(methodTemplate, `${methodTemplate.label || 'method'}::activation`);
+      activation.kind = 'activation';
+      activation.methodTemplate = methodTemplate;
+      activation._messageReceiver = messageReceiver;
+      activation._holder = meta && meta.holder ? meta.holder : null;
+      activation._selectorName = meta && meta.selectorName ? meta.selectorName : null;
+
+      // Bind activation parent slot.
+      const parentSlotName = methodTemplate.activationParentSlotName;
+      if (!this.hasSlot(activation, parentSlotName)) {
+        throw new VMError(`Activation parent slot '${parentSlotName}' missing on activation clone.`);
+      }
+      activation.slots[parentSlotName].value = methodTemplate.activationParentIsSelf
+        ? messageReceiver
+        : (messageReceiver && messageReceiver._lexicalParent ? messageReceiver._lexicalParent : null);
+
+      // Bind arguments.
+      if (args.length !== methodTemplate.argNames.length) {
+        throw new VMError(
+          `Arity mismatch for ${this.describeValue(methodTemplate)}: expected ${methodTemplate.argNames.length}, got ${args.length}.`
+        );
+      }
+      for (let i = 0; i < methodTemplate.argNames.length; i++) {
+        const argName = methodTemplate.argNames[i];
+        activation.slots[argName].value = args[i];
+      }
+
+      const ctx = this.systemContext;
+      const previousActivation = ctx.currentActivation;
+      ctx.activationStack.push(previousActivation);
+      ctx.currentActivation = activation;
+      try {
+        return this.executeActivation(activation);
+      } finally {
+        ctx.currentActivation = ctx.activationStack.pop();
+      }
+    }
+
+    executeActivation(activation) {
+      const instructions = activation.methodTemplate.instructions;
+      const stack = [];
+
+      const popValue = () => {
+        if (stack.length === 0) throw new VMError('Stack underflow.');
+        return stack.pop();
+      };
+
+      for (let pc = 0; pc < instructions.length; pc++) {
+        const ins = instructions[pc];
+        switch (ins.op) {
+          case 'pushSelf':
+            stack.push(activation);
+            break;
+          case 'dup':
+            if (stack.length === 0) throw new VMError('Stack underflow on dup.');
+            stack.push(stack[stack.length - 1]);
+            break;
+          case 'pop':
+            popValue();
+            break;
+          case 'send': {
+            const receiver = popValue();
+            const args = [];
+            for (let i = 0; i < ins.argc; i++) {
+              args.unshift(popValue());
+            }
+            const result = this.send(receiver, ins.selector, args, { currentActivation: activation });
+            stack.push(result);
+            break;
+          }
+          case 'primitiveSend': {
+            const receiver = popValue();
+            const args = [];
+            for (let i = 0; i < ins.argc; i++) {
+              args.unshift(popValue());
+            }
+            const selectorName = ins.selector.name;
+            const primitiveResult = this._tryPrimitiveSend(receiver, selectorName, args);
+            if (!primitiveResult.handled) {
+              throw new VMError(`Primitive '${selectorName}' not implemented for ${this.describeValue(receiver)}.`);
+            }
+            stack.push(primitiveResult.value);
+            break;
+          }
+          case 'primitiveResend': {
+            // Same as primitiveSend in this demo runtime.
+            const receiver = popValue();
+            const args = [];
+            for (let i = 0; i < ins.argc; i++) {
+              args.unshift(popValue());
+            }
+            const selectorName = ins.selector.name;
+            const primitiveResult = this._tryPrimitiveSend(receiver, selectorName, args);
+            if (!primitiveResult.handled) {
+              throw new VMError(`Primitive '${selectorName}' not implemented for ${this.describeValue(receiver)}.`);
+            }
+            stack.push(primitiveResult.value);
+            break;
+          }
+          case 'resend': {
+            // Simple undirected resend: continue lookup from the lexical/message parent of current activation.
+            const receiver = popValue();
+            const args = [];
+            for (let i = 0; i < ins.argc; i++) {
+              args.unshift(popValue());
+            }
+            const parentSlotName = activation.methodTemplate.activationParentSlotName;
+            const parentTarget = this.getSlotValue(activation, parentSlotName);
+            if (!parentTarget) throw new VMError('Cannot resend without an activation parent target.');
+            const selectorName = ins.selector.name;
+            const found = this._lookupSlot(parentTarget, selectorName);
+            if (!found) throw new VMError(`Resend '${selectorName}' not understood.`);
+            const slotValue = this._resolveSlotValueForSend(found.slot, activation);
+            if (slotValue && slotValue.kind === 'methodTemplate') {
+              stack.push(this.invokeMethod(slotValue, receiver, args, { selectorName, holder: found.holder }));
+            } else {
+              stack.push(slotValue);
+            }
+            break;
+          }
+          case 'returnTop':
+            return popValue();
+          default:
+            throw new VMError(`Unknown instruction op '${ins.op}'.`);
+        }
+      }
+
+      return stack.length > 0 ? stack[stack.length - 1] : null;
+    }
+
+    numberValue(valueOrNumberObj) {
+      return this.unwrapNumber(valueOrNumberObj);
+    }
+
+    // Convenience builders for examples.
+    createDemoObject(label, parent) {
+      const obj = this.newObject(label);
+      if (parent) {
+        this.addSlot(obj, 'parent', parent, { isParent: true });
+      }
+      return obj;
+    }
+  }
+
+  function assert(condition, message) {
+    if (!condition) throw new Error(message || 'Assertion failed');
+  }
+
+  function assertNumber(vm, value, expected, label) {
+    const actual = vm.numberValue(value);
+    if (actual !== expected) {
+      throw new Error(`${label}: expected ${expected}, got ${actual}`);
+    }
+    return actual;
+  }
+
+  function buildExamples(vm) {
+    const lobby = vm.lobby;
+    const traits = vm.getSlotValue(lobby, 'traits');
+    const globals = vm.getSlotValue(lobby, 'globals');
+    const traitsObject = vm.getSlotValue(traits, 'object');
+
+    // Example-specific namespaces under globals for visibility and to exercise lobby/globals wiring.
+    const demos = vm.createDemoObject('globals.demos', traitsObject);
+    vm.addSlot(globals, 'demos', demos);
+
+    // ---------------------------------------------------------------------
+    // Example 1: Standard method invocation + delegated lookup + activation.
+    // ---------------------------------------------------------------------
+    const mulTrait = vm.createDemoObject('traits.demoMul', traitsObject);
+    vm.addSlot(demos, 'mulTrait', mulTrait);
+
+    const mulMethod = vm.newMethodTemplate({
+      label: 'mul:',
+      selectorHint: 'mul:',
+      argNames: ['arg'],
+      bytecode: `
+        pushSelf
+        send arg
+        pushSelf
+        send a
+        send * 1
+        returnTop
+      `
+    });
+    vm.addSlot(mulTrait, 'mul:', mulMethod);
+
+    const standardObj = vm.createDemoObject('standardObject', mulTrait);
+    vm.addSlot(standardObj, 'x', vm.makeNumber(2));
+    vm.addSlot(standardObj, 'a', vm.makeNumber(3));
+    vm.addSlot(demos, 'standardObject', standardObj);
+
+    // ---------------------------------------------------------------------
+    // Example 2: Method with block literal [x + y] value
+    // ---------------------------------------------------------------------
+    const blockLiteral1 = vm.newBlockLiteral({
+      label: 'doSomething.literal1',
+      valueSelector: 'value',
+      argNames: [],
+      bytecode: `
+        pushSelf
+        send x
+        pushSelf
+        send y
+        send + 1
+        returnTop
+      `
+    });
+
+    const doSomethingMethod = vm.newMethodTemplate({
+      label: 'doSomething',
+      selectorHint: 'doSomething',
+      argNames: [],
+      literals: [
+        { kind: 'block', slotName: 'literal1', value: blockLiteral1 }
+      ],
+      bytecode: `
+        pushSelf
+        send literal1
+        send value 0
+        returnTop
+      `
+    });
+
+    const blockObj = vm.createDemoObject('blockExampleObject', traitsObject);
+    vm.addSlot(blockObj, 'x', vm.makeNumber(3));
+    vm.addSlot(blockObj, 'y', vm.makeNumber(4));
+    vm.addSlot(blockObj, 'doSomething', doSomethingMethod);
+    vm.addSlot(demos, 'blockExampleObject', blockObj);
+
+    // ---------------------------------------------------------------------
+    // Example 3: Nested blocks x + ([:arg | arg + 1] value: y)
+    // ---------------------------------------------------------------------
+    const innerBlockLiteral = vm.newBlockLiteral({
+      label: 'doNested.literal2',
+      valueSelector: 'value:',
+      argNames: ['arg'],
+      literals: [
+        { kind: 'constant', slotName: 'literal3', value: vm.makeNumber(1) }
+      ],
+      bytecode: `
+        pushSelf
+        send arg
+        pushSelf
+        send literal3
+        send + 1
+        returnTop
+      `
+    });
+
+    const outerBlockLiteral = vm.newBlockLiteral({
+      label: 'doNested.literal1',
+      valueSelector: 'value',
+      argNames: [],
+      literals: [
+        { kind: 'block', slotName: 'literal2', value: innerBlockLiteral }
+      ],
+      bytecode: `
+        pushSelf
+        send x
+        pushSelf
+        send y
+        pushSelf
+        send literal2
+        send value: 1
+        send + 1
+        returnTop
+      `
+    });
+
+    const doNestedMethod = vm.newMethodTemplate({
+      label: 'doNested',
+      selectorHint: 'doNested',
+      argNames: [],
+      literals: [
+        { kind: 'block', slotName: 'literal1', value: outerBlockLiteral }
+      ],
+      bytecode: `
+        pushSelf
+        send literal1
+        send value 0
+        returnTop
+      `
+    });
+
+    const nestedObj = vm.createDemoObject('nestedBlockExampleObject', traitsObject);
+    vm.addSlot(nestedObj, 'x', vm.makeNumber(3));
+    vm.addSlot(nestedObj, 'y', vm.makeNumber(4));
+    vm.addSlot(nestedObj, 'doNested', doNestedMethod);
+    vm.addSlot(demos, 'nestedBlockExampleObject', nestedObj);
+
+    return {
+      lobby,
+      traits,
+      globals,
+      demos,
+      objects: {
+        standardObj,
+        blockObj,
+        nestedObj,
+        mulTrait
+      }
+    };
+  }
+
+  function runPrebuiltExamples(options) {
+    const opts = options || {};
+    const write = typeof opts.write === 'function' ? opts.write : function () {};
+
+    const vm = new SelfLikeVM();
+    const built = buildExamples(vm);
+
+    const results = [];
+    const pushResult = (name, expected, value) => {
+      const actual = vm.numberValue(value);
+      const ok = actual === expected;
+      results.push({ name, expected, actual, ok });
+      write(`${ok ? 'PASS' : 'FAIL'}  ${name} => ${actual} (expected ${expected})`);
+      if (!ok) throw new Error(`${name} failed: expected ${expected}, got ${actual}`);
+    };
+
+    write('Running Self-like object model examples...');
+
+    // Example 1: delegated method lookup + activation object with self/arg.
+    const xValue = vm.getSlotValue(built.objects.standardObj, 'x');
+    const res1 = vm.send(built.objects.standardObj, 'mul:', [xValue]);
+    pushResult('standard method invocation (mul:)', 6, res1);
+
+    // Example 2: block literal captures lexical parent and can access x,y.
+    const res2 = vm.send(built.objects.blockObj, 'doSomething', []);
+    pushResult('method with block ([x+y] value)', 7, res2);
+
+    // Example 3: nested blocks capture outer block + method activation.
+    const res3 = vm.send(built.objects.nestedObj, 'doNested', []);
+    pushResult('nested block (x + ([:arg|arg+1] value: y))', 8, res3);
+
+    // systemContext tracking requirement: no activation should remain after top-level sends.
+    const sc = vm.systemContext;
+    assert(sc.currentActivation === null, 'systemContext.currentActivation should be restored to null after execution');
+    write(`PASS  systemContext.currentActivation restored => ${sc.currentActivation}`);
+    write(`PASS  symbol table size => ${sc.symbolTable.size}`);
+
+    return {
+      ok: true,
+      vm,
+      built,
+      results,
+      symbolTableSize: sc.symbolTable.size
+    };
+  }
+
+  const api = {
+    SelfLikeVM,
+    runPrebuiltExamples,
+    buildExamples,
+    VMError
+  };
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  }
+  global.SelfObjectModelDemo = api;
+
+  // Node CLI mode for easy verification.
+  if (typeof process !== 'undefined' && process.versions && process.versions.node && typeof require !== 'undefined') {
+    if (require.main === module) {
+      try {
+        const out = [];
+        runPrebuiltExamples({ write: (line) => out.push(line) });
+        console.log(out.join('\n'));
+      } catch (e) {
+        console.error(e && e.stack ? e.stack : String(e));
+        process.exitCode = 1;
+      }
+    }
+  }
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+  <script type="application/x-selfie-script" data-selfie-file="true" data-name="self_examples.js">
+(function(global){
+  'use strict';
+  if (!global.SelfObjectModelDemo || !global.SelfObjectModelDemo.SelfLikeVM) {
+    throw new Error('Missing SelfObjectModelDemo.SelfLikeVM. Load self_object_model_demo.js first.');
+  }
+
+  function assert(condition, message) {
+    if (!condition) throw new Error(message || 'Assertion failed');
+  }
+
+  function assertNumber(vm, value, expected, label) {
+    const actual = vm.numberValue(value);
+    if (actual !== expected) {
+      throw new Error(`${label}: expected ${expected}, got ${actual}`);
+    }
+    return actual;
+  }
+
+  function buildExamples(vm) {
+    const lobby = vm.lobby;
+    const traits = vm.getSlotValue(lobby, 'traits');
+    const globals = vm.getSlotValue(lobby, 'globals');
+    const traitsObject = vm.getSlotValue(traits, 'object');
+
+    // Example-specific namespaces under globals for visibility and to exercise lobby/globals wiring.
+    const demos = vm.createDemoObject('globals.demos', traitsObject);
+    vm.addSlot(globals, 'demos', demos);
+
+    // ---------------------------------------------------------------------
+    // Example 1: Standard method invocation + delegated lookup + activation.
+    // ---------------------------------------------------------------------
+    const mulTrait = vm.createDemoObject('traits.demoMul', traitsObject);
+    vm.addSlot(demos, 'mulTrait', mulTrait);
+
+    const mulMethod = vm.newMethodTemplate({
+      label: 'mul:',
+      selectorHint: 'mul:',
+      argNames: ['arg'],
+      bytecode: `
+        pushSelf
+        send arg
+        pushSelf
+        send a
+        send * 1
+        returnTop
+      `
+    });
+    vm.addSlot(mulTrait, 'mul:', mulMethod);
+
+    const standardObj = vm.createDemoObject('standardObject', mulTrait);
+    vm.addSlot(standardObj, 'x', vm.makeNumber(2));
+    vm.addSlot(standardObj, 'a', vm.makeNumber(3));
+    vm.addSlot(demos, 'standardObject', standardObj);
+
+    // ---------------------------------------------------------------------
+    // Example 2: Method with block literal [x + y] value
+    // ---------------------------------------------------------------------
+    const blockLiteral1 = vm.newBlockLiteral({
+      label: 'doSomething.literal1',
+      valueSelector: 'value',
+      argNames: [],
+      bytecode: `
+        pushSelf
+        send x
+        pushSelf
+        send y
+        send + 1
+        returnTop
+      `
+    });
+
+    const doSomethingMethod = vm.newMethodTemplate({
+      label: 'doSomething',
+      selectorHint: 'doSomething',
+      argNames: [],
+      literals: [
+        { kind: 'block', slotName: 'literal1', value: blockLiteral1 }
+      ],
+      bytecode: `
+        pushSelf
+        send literal1
+        send value 0
+        returnTop
+      `
+    });
+
+    const blockObj = vm.createDemoObject('blockExampleObject', traitsObject);
+    vm.addSlot(blockObj, 'x', vm.makeNumber(3));
+    vm.addSlot(blockObj, 'y', vm.makeNumber(4));
+    vm.addSlot(blockObj, 'doSomething', doSomethingMethod);
+    vm.addSlot(demos, 'blockExampleObject', blockObj);
+
+    // ---------------------------------------------------------------------
+    // Example 3: Nested blocks x + ([:arg | arg + 1] value: y)
+    // ---------------------------------------------------------------------
+    const innerBlockLiteral = vm.newBlockLiteral({
+      label: 'doNested.literal2',
+      valueSelector: 'value:',
+      argNames: ['arg'],
+      literals: [
+        { kind: 'constant', slotName: 'literal3', value: vm.makeNumber(1) }
+      ],
+      bytecode: `
+        pushSelf
+        send arg
+        pushSelf
+        send literal3
+        send + 1
+        returnTop
+      `
+    });
+
+    const outerBlockLiteral = vm.newBlockLiteral({
+      label: 'doNested.literal1',
+      valueSelector: 'value',
+      argNames: [],
+      literals: [
+        { kind: 'block', slotName: 'literal2', value: innerBlockLiteral }
+      ],
+      bytecode: `
+        pushSelf
+        send x
+        pushSelf
+        send y
+        pushSelf
+        send literal2
+        send value: 1
+        send + 1
+        returnTop
+      `
+    });
+
+    const doNestedMethod = vm.newMethodTemplate({
+      label: 'doNested',
+      selectorHint: 'doNested',
+      argNames: [],
+      literals: [
+        { kind: 'block', slotName: 'literal1', value: outerBlockLiteral }
+      ],
+      bytecode: `
+        pushSelf
+        send literal1
+        send value 0
+        returnTop
+      `
+    });
+
+    const nestedObj = vm.createDemoObject('nestedBlockExampleObject', traitsObject);
+    vm.addSlot(nestedObj, 'x', vm.makeNumber(3));
+    vm.addSlot(nestedObj, 'y', vm.makeNumber(4));
+    vm.addSlot(nestedObj, 'doNested', doNestedMethod);
+    vm.addSlot(demos, 'nestedBlockExampleObject', nestedObj);
+
+    return {
+      lobby,
+      traits,
+      globals,
+      demos,
+      objects: {
+        standardObj,
+        blockObj,
+        nestedObj,
+        mulTrait
+      }
+    };
+  }
+
+  function runPrebuiltExamples(options) {
+    const opts = options || {};
+    const write = typeof opts.write === 'function' ? opts.write : function () {};
+
+    const vm = new SelfLikeVM();
+    const built = buildExamples(vm);
+
+    const results = [];
+    const pushResult = (name, expected, value) => {
+      const actual = vm.numberValue(value);
+      const ok = actual === expected;
+      results.push({ name, expected, actual, ok });
+      write(`${ok ? 'PASS' : 'FAIL'}  ${name} => ${actual} (expected ${expected})`);
+      if (!ok) throw new Error(`${name} failed: expected ${expected}, got ${actual}`);
+    };
+
+    write('Running Self-like object model examples...');
+
+    // Example 1: delegated method lookup + activation object with self/arg.
+    const xValue = vm.getSlotValue(built.objects.standardObj, 'x');
+    const res1 = vm.send(built.objects.standardObj, 'mul:', [xValue]);
+    pushResult('standard method invocation (mul:)', 6, res1);
+
+    // Example 2: block literal captures lexical parent and can access x,y.
+    const res2 = vm.send(built.objects.blockObj, 'doSomething', []);
+    pushResult('method with block ([x+y] value)', 7, res2);
+
+    // Example 3: nested blocks capture outer block + method activation.
+    const res3 = vm.send(built.objects.nestedObj, 'doNested', []);
+    pushResult('nested block (x + ([:arg|arg+1] value: y))', 8, res3);
+
+    // systemContext tracking requirement: no activation should remain after top-level sends.
+    const sc = vm.systemContext;
+    assert(sc.currentActivation === null, 'systemContext.currentActivation should be restored to null after execution');
+    write(`PASS  systemContext.currentActivation restored => ${sc.currentActivation}`);
+    write(`PASS  symbol table size => ${sc.symbolTable.size}`);
+
+    return {
+      ok: true,
+      vm,
+      built,
+      results,
+      symbolTableSize: sc.symbolTable.size
+    };
+  }
+
+
+  global.SelfObjectModelExamples = { buildExamples, runPrebuiltExamples };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+  </script>
+  <script type="application/x-selfie-script" data-selfie-file="true" data-name="self_scan.js">
+(function(global){
+  'use strict';
+
+  class ScanError extends Error {
+    constructor(message, pos){
+      super(message);
+      this.name='ScanError';
+      this.pos=pos||0;
+    }
+  }
+
+function scan(src) {
+    const s = String(src || '');
+    const tokens = [];
+    let i = 0;
+
+    const isWS = (c) => c === ' ' || c === '\t' || c === '\n' || c === '\r';
+    const isDigit = (c) => c >= '0' && c <= '9';
+    const isIdStart = (c) => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c === '_';
+    const isId = (c) => isIdStart(c) || isDigit(c);
+    // NOTE: exclude ':' and '|' which are structural tokens in this tiny language.
+    const isBinOpChar = (c) => "+-*/=<>~&,@%".includes(c);
+
+    const add = (type, value, pos) => tokens.push({ type, value, pos });
+
+    while (i < s.length) {
+      const c = s[i];
+
+      if (isWS(c)) { i++; continue; }
+
+      // comments: // ...
+      if (c === '/' && s[i + 1] === '/') {
+        i += 2;
+        while (i < s.length && s[i] !== '\n') i++;
+        continue;
+      }
+
+      // punctuation
+      if (c === '(') { add('LPAREN', '(', i++); continue; }
+      if (c === ')') { add('RPAREN', ')', i++); continue; }
+      if (c === '[') { add('LBRACK', '[', i++); continue; }
+      if (c === ']') { add('RBRACK', ']', i++); continue; }
+      if (c === '.') { add('DOT', '.', i++); continue; }
+      if (c === '^') { add('CARET', '^', i++); continue; }
+      if (c === '|') { add('BAR', '|', i++); continue; }
+
+      // assignment :=
+      if (c === ':' && s[i + 1] === '=') { add('ASSIGN', ':=', i); i += 2; continue; }
+      if (c === ':') { add('COLON', ':', i++); continue; }
+
+      // string literal: '...'
+      if (c === "'") {
+        const start = i;
+        i++;
+        let out = '';
+        while (i < s.length) {
+          const ch = s[i];
+          if (ch === "'") {
+            if (s[i + 1] === "'") { out += "'"; i += 2; continue; }
+            i++; break;
+          }
+          out += ch;
+          i++;
+        }
+        add('STRING', out, start);
+        continue;
+      }
+
+      // number
+      if (isDigit(c) || ((c === '+' || c === '-') && isDigit(s[i + 1]))) {
+        const start = i;
+        let j = i;
+        if (s[j] === '+' || s[j] === '-') j++;
+        while (j < s.length && isDigit(s[j])) j++;
+        if (s[j] === '.') {
+          let k = j + 1;
+          if (k < s.length && isDigit(s[k])) {
+            j = k;
+            while (j < s.length && isDigit(s[j])) j++;
+          }
+        }
+        const text = s.slice(i, j);
+        i = j;
+        add('NUMBER', text, start);
+        continue;
+      }
+
+      // identifier
+      if (isIdStart(c)) {
+        const start = i;
+        let j = i + 1;
+        while (j < s.length && isId(s[j])) j++;
+        const name = s.slice(i, j);
+        i = j;
+        add('IDENT', name, start);
+        continue;
+      }
+
+      // binary selector
+      if (isBinOpChar(c)) {
+        const start = i;
+        let j = i + 1;
+        while (j < s.length && isBinOpChar(s[j])) j++;
+        const op = s.slice(i, j);
+        i = j;
+        add('BINOP', op, start);
+        continue;
+      }
+
+      throw new ScanError(`Unexpected character '${c}'`, i);
+    }
+
+    add('EOF', '', i);
+    return tokens;
+  }
+
+  
+  // Replace ScanError throws with ScanError for scanner separation.
+  global.SelfScan = { scan, ScanError };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+  </script>
+  <script type="application/x-selfie-script" data-selfie-file="true" data-name="self_parse.js">
+(function(global){
+  'use strict';
+  if (!global.SelfScan || typeof global.SelfScan.scan !== 'function') {
+    throw new Error('Missing SelfScan.scan. Load self_scan.js first.');
+  }
+
+class ParseError extends Error {
+    constructor(message, pos) {
+      super(message);
+      this.name = 'ParseError';
+      this.pos = pos || 0;
+    }
+  }
+
+  
+class Parser {
+    constructor(tokens) {
+      this.t = tokens;
+      this.i = 0;
+    }
+
+    peek() { return this.t[this.i]; }
+    lookahead(n = 1) { return this.t[this.i + n] || { type: 'EOF', value: '', pos: this.peek().pos }; }
+    next() { return this.t[this.i++]; }
+
+    accept(type) {
+      if (this.peek().type === type) return this.next();
+      return null;
+    }
+
+    expect(type, msg) {
+      const tok = this.next();
+      if (!tok || tok.type !== type) {
+        throw new ParseError(msg || `Expected ${type} but got ${(tok && tok.type) || 'EOF'}`, (tok && tok.pos) || 0);
+      }
+      return tok;
+    }
+
+    // | t u |  (may be empty: || )
+    parseTempsDecl() {
+      this.expect('BAR', 'Expected | to start temp declaration');
+      const names = [];
+      while (this.peek().type === 'IDENT') {
+        names.push(this.next().value);
+      }
+      this.expect('BAR', 'Expected | to end temp declaration');
+      return names;
+    }
+
+    parseStatements(stopTypes = new Set(['EOF', 'RBRACK'])) {
+      const stmts = [];
+      while (!stopTypes.has(this.peek().type)) {
+        if (this.accept('DOT')) continue;
+        stmts.push(this.parseStatement());
+        this.accept('DOT');
+      }
+      return stmts;
+    }
+
+    parseSequence(stopTypes = new Set(['EOF', 'RBRACK'])) {
+      let temps = [];
+      if (this.peek().type === 'BAR') {
+        temps = this.parseTempsDecl();
+      }
+      const statements = this.parseStatements(stopTypes);
+      return { temps, statements };
+    }
+
+    parseStatement() {
+      if (this.accept('CARET')) {
+        const expr = this.parseExpression();
+        return { type: 'Return', expr };
+      }
+
+      // assignment: name := expr
+      if (this.peek().type === 'IDENT' && this.lookahead().type === 'ASSIGN') {
+        const name = this.next().value;
+        this.next(); // ASSIGN
+        const expr = this.parseExpression();
+        return { type: 'Assign', name, expr };
+      }
+
+      const expr = this.parseExpression();
+      return { type: 'Expr', expr };
+    }
+
+    parseExpression() {
+      return this.parseKeyword();
+    }
+
+    // keyword sends have the lowest precedence
+    parseKeyword() {
+      let recv = this.parseBinary();
+
+      // IDENT ':' ...
+      if (this.peek().type === 'IDENT' && this.lookahead().type === 'COLON') {
+        const parts = [];
+        const args = [];
+        while (this.peek().type === 'IDENT' && this.lookahead().type === 'COLON') {
+          const key = this.next().value;
+          this.expect('COLON', 'Expected : in keyword message');
+          parts.push(key + ':');
+          // argument parses with higher precedence than keyword, so parseBinary.
+          args.push(this.parseBinary());
+        }
+        const selector = parts.join('');
+        recv = { type: 'KeywordSend', selector, recv, args };
+      }
+
+      return recv;
+    }
+
+    parseBinary() {
+      let left = this.parseUnary();
+      while (this.peek().type === 'BINOP') {
+        const op = this.next().value;
+        const right = this.parseUnary();
+        left = { type: 'BinarySend', op, recv: left, arg: right };
+      }
+      return left;
+    }
+
+    parseUnary() {
+      let node = this.parsePrimary();
+      while (this.peek().type === 'IDENT' && this.lookahead().type !== 'COLON') {
+        const sel = this.next().value;
+        node = { type: 'UnarySend', sel, recv: node };
+      }
+      return node;
+    }
+
+    parsePrimary() {
+      const tok = this.peek();
+      if (tok.type === 'NUMBER') { this.next(); return { type: 'Number', text: tok.value }; }
+      if (tok.type === 'STRING') { this.next(); return { type: 'String', text: tok.value }; }
+      if (tok.type === 'IDENT') { this.next(); return { type: 'Ident', name: tok.value }; }
+
+      if (this.accept('LPAREN')) {
+        const e = this.parseExpression();
+        this.expect('RPAREN', 'Expected )');
+        return e;
+      }
+
+      if (this.accept('LBRACK')) {
+        // block arguments: [:x :y | ...]
+        const argNames = [];
+        let tempNames = [];
+
+        if (this.peek().type === 'COLON') {
+          while (this.accept('COLON')) {
+            const a = this.expect('IDENT', 'Expected argument name after :');
+            argNames.push(a.value);
+          }
+          this.expect('BAR', 'Expected | after block arguments');
+          if (this.peek().type === 'BAR') {
+            tempNames = this.parseTempsDecl();
+          }
+        } else if (this.peek().type === 'BAR') {
+          tempNames = this.parseTempsDecl();
+        }
+
+        const seq = this.parseSequence(new Set(['RBRACK']));
+        // If we already parsed tempNames from post-args, merge with leading temps in sequence.
+        if (seq.temps && seq.temps.length) tempNames = tempNames.concat(seq.temps);
+
+        this.expect('RBRACK', 'Expected ]');
+        return { type: 'Block', argNames, tempNames, statements: seq.statements };
+      }
+
+      throw new ParseError(`Expected primary but got ${tok.type}`, tok.pos);
+    }
+  }
+
+  
+function parseHeader(headerText) {
+    const text = String(headerText || '').trim();
+    if (!text) throw new ParseError('Empty method header');
+
+    const toks = scan(text);
+    const p = new Parser(toks);
+
+    // binary: + arg
+    if (p.peek().type === 'BINOP') {
+      const op = p.next().value;
+      const argTok = p.expect('IDENT', 'Binary method header expects an argument name');
+      p.expect('EOF');
+      return { selector: op, argNames: [argTok.value], headerDisplay: `${op} ${argTok.value}` };
+    }
+
+    // keyword: at: x Put: y
+    if (p.peek().type === 'IDENT' && p.lookahead().type === 'COLON') {
+      const parts = [];
+      const argNames = [];
+      const displayParts = [];
+      while (p.peek().type === 'IDENT') {
+        const key = p.expect('IDENT', 'Expected keyword part');
+        p.expect('COLON', 'Expected : in keyword header');
+        const arg = p.expect('IDENT', 'Expected argument name after keyword :');
+        parts.push(key.value + ':');
+        argNames.push(arg.value);
+        displayParts.push(`${key.value}: ${arg.value}`);
+        if (!(p.peek().type === 'IDENT' && p.lookahead().type === 'COLON')) break;
+      }
+      p.expect('EOF');
+      return { selector: parts.join(''), argNames, headerDisplay: displayParts.join(' ') };
+    }
+
+    // unary: foo
+    const selTok = p.expect('IDENT', 'Unary method header expects an identifier');
+    p.expect('EOF');
+    return { selector: selTok.value, argNames: [], headerDisplay: selTok.value };
+  }
+
+  
+  // parseHeader scans header text using SelfScan.
+  // (We patch internal call below.)
+  global.SelfParse = { ParseError, Parser, parseHeader };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+  </script>
+  <script type="application/x-selfie-script" data-selfie-file="true" data-name="self_compile.js">
+(function(global){
+  'use strict';
+  if (!global.SelfScan || !global.SelfParse) {
+    throw new Error('Missing SelfScan/SelfParse. Load self_scan.js and self_parse.js first.');
+  }
+
+function blockValueSelectorForArity(n) {
+    if (n <= 0) return 'value';
+    if (n === 1) return 'value:';
+    return 'value:' + Array.from({ length: n - 1 }, () => 'With:').join('');
+  }
+
+  class Compiler {
+    constructor(env) {
+      this.env = env;
+      this.lines = [];
+      this.literals = [];
+      this.litCount = 0;
+    }
+
+    emit(line) { this.lines.push(line); }
+
+    addLiteral(kind, value) {
+      this.litCount += 1;
+      const slotName = `literal${this.litCount}`;
+      this.literals.push({ kind, slotName, value });
+      return slotName;
+    }
+
+    pushActivation() { this.emit('pushSelf'); }
+
+    pushIdent(name) {
+      this.pushActivation();
+      this.emit(`send ${name}`);
+    }
+
+    pushLiteralSlot(slotName) {
+      this.pushActivation();
+      this.emit(`send ${slotName}`);
+    }
+
+    compileStatements(statements) {
+      const stmts = Array.isArray(statements) ? statements : [];
+      if (stmts.length === 0) return;
+
+      for (let i = 0; i < stmts.length; i++) {
+        const st = stmts[i];
+        const isLast = i === stmts.length - 1;
+
+        if (st.type === 'Return') {
+          this.compileExpr(st.expr);
+          this.emit('returnTop');
+          return;
+        }
+
+        if (st.type === 'Assign') {
+          this.compileAssign(st.name, st.expr);
+          if (!isLast) this.emit('pop');
+          continue;
+        }
+
+        this.compileExpr(st.expr);
+        if (!isLast) this.emit('pop');
+      }
+
+      this.emit('returnTop');
+    }
+
+    compileAssign(name, rhsExpr) {
+      // Stack convention for 'send': receiver on top; args below it in order.
+      // We implement assignment by sending a primitive to the *activation* object.
+      // Push symbol(name), push rhs value, push activation, send setSlot:To: 2.
+      const sym = this.env.vm.intern(name);
+      const litSlot = this.addLiteral('constant', sym);
+      this.pushLiteralSlot(litSlot);
+      this.compileExpr(rhsExpr);
+      this.emit('pushSelf');
+      this.emit('send setSlot:To: 2');
+    }
+
+    compileExpr(node) {
+      switch (node.type) {
+        case 'Number': {
+          const num = this.env.vm.makeNumber(Number(node.text));
+          const slot = this.addLiteral('constant', num);
+          this.pushLiteralSlot(slot);
+          return;
+        }
+        case 'String': {
+          const str = this.env.makeStringObject(node.text);
+          const slot = this.addLiteral('constant', str);
+          this.pushLiteralSlot(slot);
+          return;
+        }
+        case 'Ident': {
+          this.pushIdent(node.name);
+          return;
+        }
+        case 'UnarySend': {
+          this.compileExpr(node.recv);
+          this.emit(`send ${node.sel}`);
+          return;
+        }
+        case 'BinarySend': {
+          this.compileExpr(node.arg);
+          this.compileExpr(node.recv);
+          this.emit(`send ${node.op} 1`);
+          return;
+        }
+        case 'KeywordSend': {
+          for (const a of node.args) this.compileExpr(a);
+          this.compileExpr(node.recv);
+          this.emit(`send ${node.selector} ${node.args.length}`);
+          return;
+        }
+        case 'Block': {
+          const inner = new Compiler(this.env);
+          inner.compileStatements(node.statements);
+          const bytecode = inner.lines.join('\n');
+          const valueSelector = blockValueSelectorForArity((node.argNames || []).length);
+
+          const blockTemplate = this.env.vm.newBlockLiteral({
+            label: 'blockLiteral',
+            valueSelector,
+            argNames: node.argNames || [],
+            bytecode,
+            literals: inner.literals
+          });
+
+          // Install block temps onto the block method template so the activation clone has them.
+          for (const t of (node.tempNames || [])) {
+            if (!this.env.vm.hasSlot(blockTemplate.blockMethod, t)) {
+              this.env.vm.addSlot(blockTemplate.blockMethod, t, null);
+            }
+          }
+
+          const slot = this.addLiteral('block', blockTemplate);
+          this.pushLiteralSlot(slot);
+          return;
+        }
+        default:
+          throw new Error(`Unknown AST node type '${node.type}'`);
+      }
+    }
+  }
+
+  function compileSourceToMethodSpec(source, opts, env) {
+    const options = opts || {};
+    const e = env;
+
+    const bodyTokens = global.SelfScan.scan(source);
+    const p = new global.SelfParse.Parser(bodyTokens);
+    const seq = p.parseSequence(new Set(['EOF']));
+    p.expect('EOF');
+
+    let selector = '(eval)';
+    let argNames = [];
+    let headerDisplay = '';
+
+    if (options.isMethod) {
+      const h = global.SelfParse.parseHeader(options.headerText);
+      selector = h.selector;
+      argNames = h.argNames;
+      headerDisplay = h.headerDisplay;
+    }
+
+    const c = new Compiler(e);
+    c.compileStatements(seq.statements);
+
+    return {
+      selector,
+      argNames,
+      tempNames: seq.temps || [],
+      headerDisplay,
+      bytecode: c.lines.join('\n'),
+      literals: c.literals,
+      source: String(source || '')
+    };
+  }
+
+  
+  // compileSourceToMethodSpec scans+parses using SelfScan+SelfParse.
+  // (We patch internal references below.)
+  global.SelfCompile = { Compiler, compileSourceToMethodSpec };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+  </script>
+  <script type="application/x-selfie-script" data-selfie-file="true" data-name="self_lang.js">
+(function(global){
+  'use strict';
+  if (!global.SelfScan || !global.SelfParse || !global.SelfCompile) {
+    throw new Error('Missing SelfScan/SelfParse/SelfCompile.');
+  }
+  global.SelfLang = {
+    ScanError: global.SelfScan.ScanError,
+    ParseError: global.SelfParse.ParseError,
+    scan: global.SelfScan.scan,
+    Parser: global.SelfParse.Parser,
+    parseHeader: global.SelfParse.parseHeader,
+    compileSourceToMethodSpec: global.SelfCompile.compileSourceToMethodSpec
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+  </script>
+  <script type="application/x-selfie-script" data-selfie-file="true" data-name="self_image.js">
+(function(global){
+  'use strict';
+
+  function isVmObject(v) {
+    return !!v && typeof v === 'object' && typeof v.id === 'number' && v.slots && typeof v.slots === 'object';
+  }
+
+  function isPlainSymbol(v) {
+    return !!v && typeof v === 'object' && v.kind === 'symbol' && typeof v.name === 'string' && !('id' in v);
+  }
+
+  function isBlockLiteralTemplate(v) {
+    return !!v && typeof v === 'object' && v.kind === 'blockLiteralTemplate';
+  }
+
+  function isSystemContext(v) {
+    return !!v && typeof v === 'object' && v.kind === 'systemContext' && v.symbolTable instanceof Map;
+  }
+
+  function encodeValue(v) {
+    if (v === undefined) return { t: 'undef' };
+    if (v === null) return null;
+    if (isVmObject(v)) return { t: 'ref', id: v.id };
+    if (isPlainSymbol(v)) return { t: 'symbol', name: v.name };
+    if (isSystemContext(v)) return { t: 'systemContext' };
+    if (isBlockLiteralTemplate(v)) {
+      return {
+        t: 'blockLiteral',
+        label: v.label || null,
+        valueSelector: v.valueSelector || null,
+        blockObjectTemplate: encodeValue(v.blockObjectTemplate),
+        blockMethod: encodeValue(v.blockMethod)
+      };
+    }
+    if (v && typeof v === 'object' && typeof v.selector === 'string') {
+      return { t: 'prim', kind: v.kind || 'primitive', selector: v.selector };
+    }
+    try {
+      return { t: 'json', value: JSON.parse(JSON.stringify(v)) };
+    } catch {
+      return { t: 'json', value: String(v) };
+    }
+  }
+
+  function decodeValue(vm, idToObj, v) {
+    if (v === null) return null;
+    if (v && typeof v === 'object' && v.t) {
+      if (v.t === 'undef') return undefined;
+      if (v.t === 'ref') return idToObj.get(v.id) || null;
+      if (v.t === 'symbol') return vm.intern(v.name);
+      if (v.t === 'systemContext') return vm.systemContext;
+      if (v.t === 'prim') return { kind: v.kind, selector: v.selector };
+      if (v.t === 'json') return v.value;
+      if (v.t === 'blockLiteral') {
+        return {
+          kind: 'blockLiteralTemplate',
+          label: v.label || null,
+          valueSelector: v.valueSelector || null,
+          blockObjectTemplate: decodeValue(vm, idToObj, v.blockObjectTemplate),
+          blockMethod: decodeValue(vm, idToObj, v.blockMethod)
+        };
+      }
+    }
+    return v;
+  }
+
+  function serializeVm(vm) {
+    const objects = [];
+    let maxId = 0;
+    for (const obj of vm.objects) {
+      if (!obj || typeof obj !== 'object') continue;
+      if (obj.kind === 'activation') continue; // ephemeral
+      maxId = Math.max(maxId, obj.id || 0);
+
+      const rec = {
+        id: obj.id,
+        kind: obj.kind || 'object',
+        label: obj.label || null,
+        jsValue: (obj.kind === 'number' || obj.kind === 'string') ? obj.jsValue : undefined,
+        selectorHint: obj.kind === 'methodTemplate' ? (obj.selectorHint || null) : undefined,
+        argNames: obj.kind === 'methodTemplate' ? (obj.argNames ? obj.argNames.slice() : []) : undefined,
+        activationParentSlotName: obj.kind === 'methodTemplate' ? (obj.activationParentSlotName || 'self') : undefined,
+        activationParentIsSelf: obj.kind === 'methodTemplate' ? !!obj.activationParentIsSelf : undefined,
+        bytecode: obj.kind === 'methodTemplate' ? String(obj.bytecode || '') : undefined,
+        source: obj.kind === 'methodTemplate' ? String(obj.source || '') : undefined,
+        slots: []
+      };
+
+      const slotNames = obj.slots ? Object.keys(obj.slots) : [];
+      for (const name of slotNames) {
+        const s = obj.slots[name];
+        if (!s) continue;
+        rec.slots.push({
+          name: s.name,
+          value: encodeValue(s.value),
+          isParent: !!s.isParent,
+          isArgument: !!s.isArgument,
+          isLiteral: !!s.isLiteral,
+          literalKind: s.literalKind || null,
+          isReadWrite: !!s.isReadWrite
+        });
+      }
+
+      objects.push(rec);
+    }
+
+    const symbolTable = [];
+    const sc = vm.systemContext;
+    if (sc && sc.symbolTable instanceof Map) {
+      for (const [name, sym] of sc.symbolTable.entries()) {
+        symbolTable.push([name, (sym && sym.name) ? sym.name : name]);
+      }
+    }
+
+    return {
+      nextId: Math.max(vm._nextId || 1, maxId + 1),
+      lobbyId: vm.lobby && typeof vm.lobby.id === 'number' ? vm.lobby.id : null,
+      objects,
+      systemContext: { symbolTable }
+    };
+  }
+
+  function materializeInto(vm, vmData) {
+    vm.objects = new Set();
+    vm._nextId = 1;
+
+    const idToObj = new Map();
+    for (const rec of (vmData.objects || [])) {
+      const obj = {
+        kind: rec.kind || 'object',
+        id: rec.id,
+        label: rec.label || null,
+        slots: Object.create(null)
+      };
+      if (obj.kind === 'number' || obj.kind === 'string') obj.jsValue = rec.jsValue;
+      if (obj.kind === 'methodTemplate') {
+        obj.selectorHint = rec.selectorHint || null;
+        obj.argNames = Array.isArray(rec.argNames) ? rec.argNames.slice() : [];
+        obj.activationParentSlotName = rec.activationParentSlotName || 'self';
+        obj.activationParentIsSelf = !!rec.activationParentIsSelf;
+        obj.bytecode = String(rec.bytecode || '');
+        obj.source = String(rec.source || '');
+        obj.instructions = vm.compileBytecode(obj.bytecode);
+      }
+      idToObj.set(obj.id, obj);
+      vm.objects.add(obj);
+    }
+
+    // Recreate systemContext (plain object stored in lobby slot) BEFORE decoding values
+    const systemContext = {
+      kind: 'systemContext',
+      symbolTable: new Map(),
+      currentActivation: null,
+      activationStack: []
+    };
+    if (vmData.systemContext && Array.isArray(vmData.systemContext.symbolTable)) {
+      for (const [name, symName] of vmData.systemContext.symbolTable) {
+        systemContext.symbolTable.set(String(name), { kind: 'symbol', name: String(symName || name) });
+      }
+    }
+
+    const lobby = vmData.lobbyId != null ? idToObj.get(vmData.lobbyId) : null;
+    if (!lobby) throw new Error('Invalid image: lobbyId missing or not found.');
+    vm.lobby = lobby;
+    // Ensure lobby has systemContext slot right away so vm.intern works during decoding.
+    if (!vm.hasSlot(vm.lobby, 'systemContext')) {
+      vm.addSlot(vm.lobby, 'systemContext', systemContext);
+    } else {
+      vm.lobby.slots['systemContext'].value = systemContext;
+    }
+
+    for (const rec of (vmData.objects || [])) {
+      const obj = idToObj.get(rec.id);
+      if (!obj) continue;
+      for (const s of (rec.slots || [])) {
+        obj.slots[s.name] = {
+          name: s.name,
+          value: decodeValue(vm, idToObj, s.value),
+          isParent: !!s.isParent,
+          isArgument: !!s.isArgument,
+          isLiteral: !!s.isLiteral,
+          literalKind: s.literalKind || null,
+          isReadWrite: !!s.isReadWrite
+        };
+      }
+    }
+
+    const maxId = Math.max(0, ...Array.from(vm.objects).map(o => o.id || 0));
+    vm._nextId = Math.max(vmData.nextId || 1, maxId + 1);
+    return { idToObj };
+  }
+
+  function captureUi(outliners, links) {
+    const outlinerStates = [];
+    for (const win of outliners.windows.values()) {
+      const v = win.value;
+      if (!v || typeof v !== 'object' || typeof v.id !== 'number') continue;
+      const r = win.root.getBoundingClientRect();
+      outlinerStates.push({
+        objectId: v.id,
+        x: parseFloat(win.root.style.left || '0') || 0,
+        y: parseFloat(win.root.style.top || '0') || 0,
+        w: parseFloat(win.root.style.width || String(r.width)) || r.width,
+        h: parseFloat(win.root.style.height || String(r.height)) || r.height,
+        evaluator: {
+          view: win._evalView || 'source',
+          source: String(win._evalSource || ''),
+          bytecode: String(win._evalBytecode || ''),
+          literals: Array.isArray(win._evalLiterals)
+            ? win._evalLiterals.map((lit) => ({
+              kind: lit.kind,
+              slotName: lit.slotName,
+              value: encodeValue(lit.value)
+            }))
+            : []
+        }
+      });
+    }
+
+    const visibleLinks = [];
+    for (const e of links.entries.values()) {
+      if (e && e.visible) visibleLinks.push({ sourceId: e.srcId, slotName: e.slotName });
+    }
+
+    return { outliners: outlinerStates, links: visibleLinks };
+  }
+
+  function downloadImage(imageObj, filename) {
+    const text = JSON.stringify(imageObj, null, 2);
+    const blob = new Blob([text], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'snapshot.selfImage';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function parseImageText(text) {
+    const obj = JSON.parse(text);
+    if (!obj || typeof obj !== 'object') throw new Error('Invalid image JSON');
+    if (!obj.vm || !obj.vm.objects) throw new Error('Invalid image: missing vm data');
+    return obj;
+  }
+
+  global.SelfImage = {
+    encodeValue,
+    decodeValue,
+    serializeVm,
+    materializeInto,
+    captureUi,
+    downloadImage,
+    parseImageText
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+  </script>
+  <script type="application/x-selfie-script" data-selfie-file="true" data-name="outliner.js">
+/* Self-like Outliners UI + tiny Self/Smalltalk-ish compiler
+ * - Floating, resizable, focusable outliners
+ * - Slot refs: right grip = open/toggle line, drag retarget
+ * - SVG link layer + global hide-lines
+ * - Evaluator in object inspectors (Source/Bytecode)
+ * - Method templates: Source/Bytecode, header editing can rename holder slot
+ * - Parser supports: identifiers, numbers, strings, blocks, unary & binary messages, ^ return, '.' statement separator
+ */
+
+(() => {
+  'use strict';
+
+  if (!window.SelfObjectModelDemo) {
+    alert('Missing SelfObjectModelDemo. Ensure self_object_model_demo.js is loaded first.');
+    return;
+  }
+
+  const { SelfLikeVM, VMError } = window.SelfObjectModelDemo;
+  if (!window.SelfObjectModelExamples || typeof window.SelfObjectModelExamples.buildExamples !== 'function') {
+    throw new Error('Missing SelfObjectModelExamples.buildExamples. Ensure self_examples.js is loaded.');
+  }
+
+  const vm = new SelfLikeVM();
+  // Populate the initial world (lobby/globals/demos) for convenience.
+  window.SelfObjectModelExamples.buildExamples(vm);
+  const _traits = vm.getSlotValue(vm.lobby, 'traits');
+  const traitsBlock = _traits ? vm.getSlotValue(_traits, 'block') : null;
+
+  const getGlobals = () => vm.getSlotValue(vm.lobby, 'globals');
+  const getDemos = () => {
+    const g = getGlobals();
+    return g && vm.hasSlot(g, 'demos') ? vm.getSlotValue(g, 'demos') : null;
+  };
+
+  // ---------------------------------------------------------------------------
+  // DOM helpers
+  // ---------------------------------------------------------------------------
+
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const el = (tag, attrs = {}, ...children) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (k === 'class') n.className = v;
+      else if (k === 'dataset') Object.assign(n.dataset, v);
+      else if (k === 'style') Object.assign(n.style, v);
+      else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
+      else if (v === true) n.setAttribute(k, '');
+      else if (v !== false && v != null) n.setAttribute(k, String(v));
+    }
+    for (const c of children.flat()) {
+      if (c == null) continue;
+      n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    }
+    return n;
+  };
+
+  const nonVmId = new WeakMap();
+  let nextNonVmId = 1;
+  const identityKey = (v) => {
+    if (v == null) return `p:${String(v)}`;
+    if (typeof v !== 'object') return `p:${typeof v}:${String(v)}`;
+    if (typeof v.id === 'number') return `o:${v.id}`;
+    if (!nonVmId.has(v)) nonVmId.set(v, nextNonVmId++);
+    return `x:${nonVmId.get(v)}`;
+  };
+
+  function toast(msg, kind) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    t.style.borderColor = kind === 'error' ? 'rgba(255,107,107,.5)' : 'var(--stroke)';
+    window.clearTimeout(toast._tm);
+    toast._tm = window.setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+
+  function showHelp() {
+    const text = [
+      'Self-like Outliners — Help',
+      '',
+      'Windows',
+      '  • Drag header to move; resize from bottom-right.',
+      '  • Click a window to focus (bring to front).',
+      '',
+      'References / lines',
+      '  • Click the :: handle on a slot to open the referenced object and toggle its line.',
+      '  • Drag the :: handle to retarget the slot (drop on another object header/value).',
+      '  • Shift-click :: on a block literal opens the literal *template* instead of the instantiated closure.',
+      '  • Toolbar: Hide lines toggles all lines.',
+      '',
+      'Editing slot values',
+      "  • Numbers: 42 | Symbols: #foo | Object refs: @3 | Strings: 'text' | empty => null",
+      '',
+      'Source language (for methods/evaluator)',
+      '  • Literals: numbers, strings, blocks [ ... ] or [:x :y | ... ]',
+      '  • Messages: unary (x size), binary (x + y), keyword (obj at: i Put: v)',
+      '  • Temps: | t u |  and assignment: t := expr',
+      "  • Return: ^ expr   Statements: '.'",
+      '',
+      'Bytecode ops',
+      '  • pushSelf | send <selector> [argc] | resend <selector> [argc] | dup | pop | returnTop',
+      '',
+      'Slot controls',
+      '  • Use the ▾/▴ arrow to show/hide slot type flags and delete.',
+    ].join('\n');
+    window.alert(text);
+  }
+
+  function safeDescribe(value) {
+    try {
+      return vm.describeValue(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  function findObjectById(id) {
+    const n = Number(id);
+    if (!Number.isFinite(n)) return null;
+    for (const obj of vm.objects) if (obj && obj.id === n) return obj;
+    return null;
+  }
+
+  function findObjectByLabel(substr) {
+    const q = String(substr || '').toLowerCase();
+    if (!q) return null;
+    for (const obj of vm.objects) {
+      if (obj && typeof obj.label === 'string' && obj.label.toLowerCase().includes(q)) return obj;
+    }
+    return null;
+  }
+
+  function makeStringObject(text) {
+    const s = vm.newObject(`String(${text})`);
+    s.kind = 'string';
+    s.jsValue = String(text);
+    return s;
+  }
+
+  function parseValueText(text) {
+    const raw = String(text ?? '').trim();
+    if (raw === '') return { ok: true, value: null };
+    if (raw === 'null') return { ok: true, value: null };
+    if (raw === 'undefined') return { ok: true, value: undefined };
+
+    if (raw.startsWith('#') && raw.length > 1 && !/^#\d+$/.test(raw)) {
+      return { ok: true, value: vm.intern(raw.slice(1)) };
+    }
+
+    const mId = raw.match(/^@\s*(\d+)$/) || raw.match(/^#\s*(\d+)$/);
+    if (mId) {
+      const obj = findObjectById(mId[1]);
+      if (!obj) return { ok: false, error: `No object with id ${mId[1]}` };
+      return { ok: true, value: obj };
+    }
+
+    const mStr = raw.match(/^"([\s\S]*)"$/) || raw.match(/^'([\s\S]*)'$/);
+    if (mStr) {
+      return { ok: true, value: makeStringObject(mStr[1]) };
+    }
+
+    if (/^[+-]?(\d+(\.\d+)?)$/.test(raw)) {
+      const n = Number(raw);
+      if (!Number.isFinite(n)) return { ok: false, error: 'Only finite numbers are supported.' };
+      return { ok: true, value: vm.makeNumber(n) };
+    }
+
+    return { ok: true, value: makeStringObject(raw) };
+  }
+
+  function boxPrimitiveResult(value, labelPrefix) {
+    const label = `${labelPrefix || 'result'}: ${safeDescribe(value)}`;
+    const box = vm.newObject(label);
+    vm.addSlot(box, 'value', value);
+    return box;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Language frontend (scanner + parser + compiler)
+  // Implemented in standalone self_lang.js (global: SelfLang).
+  // ---------------------------------------------------------------------------
+
+  if (!globalThis.SelfLang) {
+    throw new Error('Missing SelfLang. Ensure self_lang.js is loaded before outliner.js');
+  }
+
+  function compileSourceToMethodSpec(source, { isMethod, headerText } = {}) {
+    return globalThis.SelfLang.compileSourceToMethodSpec(
+      source,
+      { isMethod: !!isMethod, headerText: headerText || '' },
+      { vm, makeStringObject }
+    );
+  }
+
+  function parseMethodHeader(headerText) {
+    return globalThis.SelfLang.parseHeader(headerText);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Workspace, link layer
+  // ---------------------------------------------------------------------------
+
+  const workspace = $('#workspace');
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const linkLayer = document.createElementNS(SVG_NS, 'svg');
+  linkLayer.classList.add('linkLayer');
+  workspace.appendChild(linkLayer);
+
+  const Links = {
+    entries: new Map(),
+    hiddenAll: false,
+    _raf: 0,
+
+    key(srcId, slotName) { return `${srcId}:${slotName}`; },
+
+    _ensure(srcId, slotName) {
+      const k = this.key(srcId, slotName);
+      let e = this.entries.get(k);
+      if (!e) {
+        const path = document.createElementNS(SVG_NS, 'path');
+        path.classList.add('linkLine');
+        linkLayer.appendChild(path);
+        e = { srcId, slotName, fromEl: null, targetId: NaN, visible: false, path };
+        this.entries.set(k, e);
+      }
+      return e;
+    },
+
+    bindFromEl(srcId, slotName, fromEl) {
+      const e = this._ensure(srcId, slotName);
+      e.fromEl = fromEl;
+      this.schedule();
+    },
+
+    setTarget(srcId, slotName, targetId) {
+      const e = this._ensure(srcId, slotName);
+      e.targetId = Number.isFinite(Number(targetId)) ? Number(targetId) : NaN;
+      this.schedule();
+    },
+
+    setVisible(srcId, slotName, visible) {
+      const e = this._ensure(srcId, slotName);
+      e.visible = !!visible;
+      this.schedule();
+    },
+
+    toggleVisible(srcId, slotName) {
+      const e = this._ensure(srcId, slotName);
+      e.visible = !e.visible;
+      this.schedule();
+    },
+
+    remove(srcId, slotName) {
+      const k = this.key(srcId, slotName);
+      const e = this.entries.get(k);
+      if (!e) return;
+      e.path.remove();
+      this.entries.delete(k);
+      this.schedule();
+    },
+
+    toggleAllHidden() {
+      this.hiddenAll = !this.hiddenAll;
+      this.schedule();
+    },
+
+    schedule() {
+      if (this._raf) return;
+      this._raf = window.requestAnimationFrame(() => {
+        this._raf = 0;
+        this.draw();
+      });
+    },
+
+    _center(domEl, wsRect) {
+      const r = domEl.getBoundingClientRect();
+      return { x: (r.left - wsRect.left) + r.width / 2, y: (r.top - wsRect.top) + r.height / 2 };
+    },
+
+    draw() {
+      const wsRect = workspace.getBoundingClientRect();
+      const w = Math.max(1, wsRect.width);
+      const h = Math.max(1, wsRect.height);
+      linkLayer.setAttribute('width', String(w));
+      linkLayer.setAttribute('height', String(h));
+      linkLayer.setAttribute('viewBox', `0 0 ${w} ${h}`);
+
+      for (const e of this.entries.values()) {
+        const fromEl = e.fromEl;
+        const targetObj = Number.isFinite(e.targetId) ? findObjectById(e.targetId) : null;
+        const targetWin = targetObj ? Outliners.windows.get(identityKey(targetObj)) : null;
+        const canDraw = !this.hiddenAll && e.visible && fromEl && fromEl.isConnected && targetWin && targetWin.header && targetWin.header.isConnected;
+
+        if (!canDraw) {
+          e.path.style.display = 'none';
+          if (fromEl && fromEl.isConnected) fromEl.dataset.active = 'false';
+          continue;
+        }
+
+        const p1 = this._center(fromEl, wsRect);
+        const p2 = this._center(targetWin.header, wsRect);
+        const dx = Math.max(28, Math.min(240, Math.abs(p2.x - p1.x) * 0.5));
+        const c1x = p1.x + dx;
+        const c2x = p2.x - dx;
+        e.path.setAttribute('d', `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} C ${c1x.toFixed(1)} ${p1.y.toFixed(1)} ${c2x.toFixed(1)} ${p2.y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`);
+        e.path.style.display = '';
+        fromEl.dataset.active = 'true';
+      }
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Outliner manager
+  // ---------------------------------------------------------------------------
+
+  const Outliners = {
+    z: 10,
+    windows: new Map(), // identityKey(value) -> OutlinerWindow
+
+    open(value, pos, meta) {
+      const key = identityKey(value);
+      if (this.windows.has(key)) {
+        const win = this.windows.get(key);
+        if (meta && !win.meta) win.meta = meta;
+        win.bringToFront();
+        win.flash();
+        return win;
+      }
+      const win = new OutlinerWindow(value, pos, meta);
+      this.windows.set(key, win);
+      workspace.appendChild(win.root);
+      win.bringToFront();
+      Links.schedule();
+      return win;
+    },
+
+    close(value) {
+      const key = identityKey(value);
+      const win = this.windows.get(key);
+      if (!win) return;
+      this.windows.delete(key);
+      if (win._resizeObs) try { win._resizeObs.disconnect(); } catch {}
+      win.root.remove();
+      Links.schedule();
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Drag-and-drop payloads
+  // ---------------------------------------------------------------------------
+
+  const DND = {
+    MIME_OBJ: 'application/x-selflike-object',
+    MIME_SLOT_REF: 'application/x-selflike-slotref',
+
+    setObject(dt, obj) { dt.setData(this.MIME_OBJ, JSON.stringify({ objectId: obj.id })); },
+    setSlotRef(dt, srcObj, slotName) { dt.setData(this.MIME_SLOT_REF, JSON.stringify({ sourceId: srcObj.id, slotName })); },
+
+    getObject(payloadText) {
+      try {
+        const p = JSON.parse(payloadText);
+        if (!p || !Number.isFinite(Number(p.objectId))) return null;
+        return findObjectById(p.objectId);
+      } catch { return null; }
+    },
+
+    getSlotRef(payloadText) {
+      try {
+        const p = JSON.parse(payloadText);
+        if (!p || !Number.isFinite(Number(p.sourceId)) || typeof p.slotName !== 'string') return null;
+        const srcObj = findObjectById(p.sourceId);
+        if (!srcObj) return null;
+        return { srcObj, slotName: p.slotName };
+      } catch { return null; }
+    }
+  };
+
+  // Workspace drop: open object at drop position.
+  workspace.addEventListener('dragover', (ev) => {
+    if (ev.dataTransfer.types.includes(DND.MIME_OBJ)) {
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = 'copy';
+    }
+  });
+
+  workspace.addEventListener('drop', (ev) => {
+    const obj = DND.getObject(ev.dataTransfer.getData(DND.MIME_OBJ));
+    if (!obj) return;
+    ev.preventDefault();
+    const rect = workspace.getBoundingClientRect();
+    Outliners.open(obj, { x: ev.clientX - rect.left, y: ev.clientY - rect.top });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Outliner window
+  // ---------------------------------------------------------------------------
+
+  class OutlinerWindow {
+    constructor(value, pos, meta) {
+      this.value = value;
+      this.key = identityKey(value);
+      this.meta = meta || null;
+
+      // UI state
+      this._evalView = 'source';
+      this._evalSource = "self";
+      this._evalBytecode = "pushSelf\nsend self\nreturnTop";
+      this._evalLiterals = [];
+      this._blockInstanceCache = new Map();
+
+      this._codeView = 'source'; // for method templates
+      this._methodHeader = '';
+      this._methodSource = '';
+
+      this.root = el('div', { class: 'outliner', tabindex: '0' });
+
+      const { x, y } = this._defaultPos(pos);
+      this.root.style.left = `${x}px`;
+      this.root.style.top = `${y}px`;
+
+      this.header = el('div', { class: 'outliner__header' });
+      this.body = el('div', { class: 'outliner__body' });
+      this.root.append(this.header, this.body);
+
+      this._wireMove();
+      this._wireFocus();
+
+      this._resizeObs = new ResizeObserver(() => Links.schedule());
+      this._resizeObs.observe(this.root);
+
+      this.render();
+    }
+
+    _defaultPos(pos) {
+      if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) return pos;
+      const count = Outliners.windows.size;
+      return { x: 18 + (count % 10) * 22, y: 72 + (count % 10) * 22 };
+    }
+
+    bringToFront() {
+      Outliners.z += 1;
+      this.root.style.zIndex = String(Outliners.z);
+      this.root.focus({ preventScroll: true });
+    }
+
+    flash() {
+      this.root.classList.add('dropTarget');
+      window.setTimeout(() => this.root.classList.remove('dropTarget'), 200);
+    }
+
+    _wireFocus() {
+      this.root.addEventListener('mousedown', () => this.bringToFront());
+    }
+
+    _wireMove() {
+      let dragging = false;
+      let startX = 0, startY = 0;
+      let startLeft = 0, startTop = 0;
+
+      const onPointerDown = (ev) => {
+        const t = ev.target;
+        if (t.closest('button')) return;
+        if (t.getAttribute('contenteditable') === 'true') return;
+        if (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT') return;
+        dragging = true;
+        this.bringToFront();
+        this.header.setPointerCapture(ev.pointerId);
+        startX = ev.clientX;
+        startY = ev.clientY;
+        startLeft = parseFloat(this.root.style.left || '0');
+        startTop = parseFloat(this.root.style.top || '0');
+        ev.preventDefault();
+      };
+
+      const onPointerMove = (ev) => {
+        if (!dragging) return;
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        this.root.style.left = `${Math.max(-20, startLeft + dx)}px`;
+        this.root.style.top = `${Math.max(40, startTop + dy)}px`;
+        Links.schedule();
+      };
+
+      const onPointerUp = (ev) => {
+        if (!dragging) return;
+        dragging = false;
+        try { this.header.releasePointerCapture(ev.pointerId); } catch {}
+      };
+
+      this.header.addEventListener('pointerdown', onPointerDown);
+      this.header.addEventListener('pointermove', onPointerMove);
+      this.header.addEventListener('pointerup', onPointerUp);
+      this.header.addEventListener('pointercancel', onPointerUp);
+
+      // Drop slot-ref on header retargets the dragged slot to this object.
+      this.header.addEventListener('dragover', (ev) => {
+        if (ev.dataTransfer.types.includes(DND.MIME_SLOT_REF)) {
+          ev.preventDefault();
+          ev.dataTransfer.dropEffect = 'link';
+          this.header.classList.add('dropTarget');
+        }
+      });
+      this.header.addEventListener('dragleave', () => this.header.classList.remove('dropTarget'));
+      this.header.addEventListener('drop', (ev) => {
+        const slotRef = DND.getSlotRef(ev.dataTransfer.getData(DND.MIME_SLOT_REF));
+        if (!slotRef) return;
+        ev.preventDefault();
+        this.header.classList.remove('dropTarget');
+        retargetSlot(slotRef.srcObj, slotRef.slotName, this.value);
+      });
+    }
+
+    render() {
+      this.header.replaceChildren(this._renderHeader());
+      this.body.replaceChildren(this._renderBody());
+      Links.schedule();
+    }
+
+    _renderHeader() {
+      const v = this.value;
+      const kind = v && typeof v === 'object' && v.kind ? v.kind : typeof v;
+
+      const badgeText = (v && typeof v === 'object' && typeof v.id === 'number') ? `#${v.id}` : this.key;
+      const badge = el('span', { class: 'badge', draggable: (v && typeof v.id === 'number') ? 'true' : 'false' }, badgeText);
+      if (v && typeof v === 'object' && typeof v.id === 'number') {
+        badge.addEventListener('dragstart', (ev) => {
+          DND.setObject(ev.dataTransfer, v);
+          ev.dataTransfer.effectAllowed = 'copy';
+        });
+      }
+
+      const label = el('div', { class: 'objLabel', contenteditable: (v && typeof v === 'object') ? 'true' : 'false', spellcheck: 'false' }, String((v && typeof v === 'object' && v.label != null) ? v.label : safeDescribe(v)));
+      if (v && typeof v === 'object') {
+        label.addEventListener('blur', () => {
+          const txt = label.textContent.trim();
+          if (!txt) { label.textContent = v.label || safeDescribe(v); return; }
+          v.label = txt;
+          Links.schedule();
+        });
+      }
+
+      const title = el('div', { class: 'header__title' },
+        el('div', { class: 'header__titleLine' }, badge, label),
+        el('div', { class: 'header__kind' }, `kind: ${kind}`)
+      );
+
+      const btnClose = el('button', { class: 'iconBtn danger' }, 'Close');
+      btnClose.addEventListener('click', () => Outliners.close(this.value));
+
+      const btnHelp = el('button', { class: 'iconBtn', title: 'Help' }, '?');
+      btnHelp.addEventListener('click', () => showHelp());
+
+      const btnRefresh = el('button', { class: 'iconBtn' }, 'Refresh');
+      btnRefresh.addEventListener('click', () => this.render());
+
+      const btnClone = el('button', { class: 'iconBtn' }, 'Clone');
+      btnClone.addEventListener('click', () => {
+        try {
+          if (!v || typeof v !== 'object') return;
+          const cloned = vm.send(v, 'clone', []);
+          Outliners.open(cloned, { x: parseFloat(this.root.style.left) + 24, y: parseFloat(this.root.style.top) + 24 });
+        } catch (e) {
+          toast(e instanceof Error ? e.message : String(e), 'error');
+        }
+      });
+
+      return el('div', { style: { display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', gap: '10px' } },
+        title,
+        el('div', { class: 'header__actions' }, btnClone, btnHelp, btnRefresh, btnClose)
+      );
+    }
+
+    _renderBody() {
+      const v = this.value;
+
+      // Method template view
+      if (v && typeof v === 'object' && v.kind === 'methodTemplate') {
+        return this._renderMethodTemplate(v);
+      }
+
+      // SystemContext
+      if (v && typeof v === 'object' && v.kind === 'systemContext') {
+        const wrap = el('div', {});
+        wrap.appendChild(el('div', { class: 'kv' }, el('div', { class: 'kv__k' }, 'activationStackDepth'), el('div', { class: 'kv__v' }, String((v.activationStack || []).length))));
+        wrap.appendChild(el('div', { class: 'kv' }, el('div', { class: 'kv__k' }, 'currentActivation'), el('div', { class: 'kv__v' }, safeDescribe(v.currentActivation))));
+        wrap.appendChild(el('div', { class: 'kv' }, el('div', { class: 'kv__k' }, 'symbolTableSize'), el('div', { class: 'kv__v' }, String((v.symbolTable && v.symbolTable.size) || 0))));
+        return wrap;
+      }
+
+      // VM objects with slots
+      if (v && typeof v === 'object' && v.slots && typeof v.slots === 'object') {
+        const slotNames = Object.keys(v.slots);
+        slotNames.sort((a, b) => {
+          if (a === 'bytecode') return 1;
+          if (b === 'bytecode') return -1;
+          return a.localeCompare(b);
+        });
+
+        const list = el('div', { class: 'slotList' });
+        for (const name of slotNames) list.appendChild(this._renderSlotRow(v, v.slots[name]));
+
+        const btnAddData = el('button', { class: 'smallBtn', title: 'Add new data slot' }, 'ro');
+        btnAddData.addEventListener('click', () => {
+          const slotName = prompt('New data slot name:');
+          if (!slotName) return;
+          const sn = slotName.trim();
+          if (!sn) return;
+          if (vm.hasSlot(v, sn)) { toast(`Slot '${sn}' already exists.`, 'error'); return; }
+          vm.addSlot(v, sn, null);
+          this.render();
+        });
+
+        const btnAddRW = el('button', { class: 'smallBtn', title: 'Add new read/write slot (foo + foo:)' }, 'rw');
+        btnAddRW.addEventListener('click', () => {
+          const slotName = prompt('New read/write slot base name (e.g. foo):');
+          if (!slotName) return;
+          const sn = slotName.trim();
+          if (!sn) return;
+          if (sn.endsWith(':')) { toast('Use base name without colon (e.g. foo).', 'error'); return; }
+          if (vm.hasSlot(v, sn)) { toast(`Slot '${sn}' already exists.`, 'error'); return; }
+          vm.addSlot(v, sn, null, { isReadWrite: true });
+          this.render();
+        });
+
+        const btnAddMethod = el('button', { class: 'smallBtn', title: 'Add new method slot' }, 'method');
+        btnAddMethod.addEventListener('click', () => {
+          const headerText = prompt('New method header (unary, binary, or keyword):', 'foo');
+          if (headerText == null) return;
+          const ht = headerText.trim();
+          if (!ht) return;
+          try {
+            const h = parseMethodHeader(ht);
+            const selector = h.selector;
+            if (vm.hasSlot(v, selector)) { toast(`Slot '${selector}' already exists.`, 'error'); return; }
+            // default empty method returns self
+            const defaultSrc = 'self';
+            const spec = compileSourceToMethodSpec(defaultSrc, { isMethod: true, headerText: ht });
+            const mt = vm.newMethodTemplate({
+              label: spec.selector,
+              selectorHint: spec.selector,
+              argNames: spec.argNames,
+              literals: spec.literals,
+              bytecode: spec.bytecode
+            });
+            mt.source = '';
+            // temp slots
+            for (const t of (spec.tempNames || [])) { if (!vm.hasSlot(mt, t)) vm.addSlot(mt, t, null); }
+
+            vm.addSlot(v, selector, mt);
+            this.render();
+            Outliners.open(mt, { x: parseFloat(this.root.style.left) + 24, y: parseFloat(this.root.style.top) + 24 }, { holderId: v.id, slotName: selector });
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            toast(`Header error: ${msg}`, 'error');
+          }
+        });
+        const evaluator = this._renderEvaluator(v);
+
+        const addBar = el('div', { class: 'addBar', style: { display: 'flex', gap: '6px', alignItems: 'center' } },
+          el('span', { style: { color: 'var(--muted)', fontFamily: 'var(--mono)', fontSize: '12px' } }, 'Add'),
+          btnAddData,
+          btnAddRW,
+          btnAddMethod
+        );
+
+        return el('div', {},
+          el('div', { class: 'sectionTitle' }, el('span', {}, 'Slots'), addBar),
+          list,
+          evaluator
+        );
+      }
+
+      return el('div', { class: 'kv' }, el('div', { class: 'kv__k' }, 'value'), el('div', { class: 'kv__v' }, safeDescribe(v)));
+    }
+
+    _renderTabs(active, onSelect) {
+      const wrap = el('div', { class: 'codeTabs' });
+      const btnSrc = el('button', { class: 'tabBtn', dataset: { active: active === 'source' ? 'true' : 'false' } }, 'Source');
+      const btnBc = el('button', { class: 'tabBtn', dataset: { active: active === 'bytecode' ? 'true' : 'false' } }, 'Bytecode');
+      btnSrc.addEventListener('click', () => onSelect('source'));
+      btnBc.addEventListener('click', () => onSelect('bytecode'));
+      wrap.append(btnSrc, btnBc);
+      return wrap;
+    }
+
+    _formatMethodHeader(methodTemplate) {
+      const sel = methodTemplate.selectorHint || methodTemplate.label || '';
+      const args = methodTemplate.argNames || [];
+
+      // binary selector display: + arg
+      if (args.length === 1 && /^[^A-Za-z0-9_]+$/.test(sel)) {
+        return `${sel} ${args[0]}`;
+      }
+
+      // keyword selector display: at: x Put: y
+      if (sel.includes(':') && args.length > 0) {
+        const parts = sel.split(':');
+        parts.pop();
+        if (parts.length === args.length) {
+          return parts.map((p, i) => `${p}: ${args[i]}`).join(' ');
+        }
+      }
+
+      return sel;
+    }
+
+    _renderMethodTemplate(mt) {
+      const wrapper = el('div', {});
+
+      // Slots list (debug / literals / args) with 'bytecode' last if present
+      const slotNames = Object.keys(mt.slots || {});
+      slotNames.sort((a, b) => {
+        if (a === 'bytecode') return 1;
+        if (b === 'bytecode') return -1;
+        return a.localeCompare(b);
+      });
+      const slotList = el('div', { class: 'slotList' });
+      for (const name of slotNames) slotList.appendChild(this._renderSlotRow(mt, mt.slots[name]));
+
+      wrapper.appendChild(el('div', { class: 'sectionTitle' }, el('span', {}, 'Slots')));
+      wrapper.appendChild(slotList);
+
+      // Code section
+      const codeWrap = el('div', { class: 'codeArea' });
+      const tabs = this._renderTabs(this._codeView, (v) => { this._codeView = v; this.render(); });
+
+      const title = el('div', { class: 'sectionTitle', style: { marginTop: '12px' } },
+        el('span', {}, 'Code'),
+        tabs
+      );
+      codeWrap.appendChild(title);
+
+      if (this._codeView === 'source') {
+        const canInstall = !!(this.meta && Number.isFinite(this.meta.holderId) && typeof this.meta.slotName === 'string');
+        const headerInit = this._methodHeader || this._formatMethodHeader(mt) || (this.meta ? this.meta.slotName : '');
+        const bodyInit = this._methodSource || mt.source || '';
+        this._methodHeader = headerInit;
+        this._methodSource = bodyInit;
+
+        const headerInput = el('input', { class: 'headerInput', value: headerInit, placeholder: "method header: foo  |  + arg  |  at: x Put: y" });
+        headerInput.addEventListener('input', () => { this._methodHeader = headerInput.value; });
+
+        const btnCompile = el('button', { class: 'btn' }, canInstall ? 'Compile & Install' : 'Compile (no holder)');
+        const bodyTa = el('textarea', { spellcheck: 'false' }, bodyInit);
+        bodyTa.addEventListener('input', () => { this._methodSource = bodyTa.value; });
+        bodyTa.addEventListener('keydown', (ev) => {
+          if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') { ev.preventDefault(); btnCompile.click(); }
+        });
+
+        btnCompile.addEventListener('click', () => {
+          try {
+            const spec = compileSourceToMethodSpec(bodyTa.value, { isMethod: true, headerText: headerInput.value });
+
+            const canInstallNow = !!(this.meta && Number.isFinite(this.meta.holderId) && typeof this.meta.slotName === 'string');
+            let holder = null;
+            if (canInstallNow) {
+              holder = findObjectById(this.meta.holderId);
+              if (!holder) throw new VMError('Holder object not found.');
+
+              const oldName = this.meta.slotName;
+              const newName = spec.selector;
+
+              if (!vm.hasSlot(holder, oldName)) throw new VMError(`Holder slot '${oldName}' no longer exists.`);
+              if (newName !== oldName) {
+                if (vm.hasSlot(holder, newName)) throw new VMError(`Cannot rename: holder already has slot '${newName}'.`);
+
+                holder.slots[newName] = Object.assign({}, holder.slots[oldName], { name: newName });
+                delete holder.slots[oldName];
+
+                // migrate link state
+                const oldKey = Links.key(holder.id, oldName);
+                const ent = Links.entries.get(oldKey);
+                if (ent) {
+                  Links.entries.delete(oldKey);
+                  ent.slotName = newName;
+                  Links.entries.set(Links.key(holder.id, newName), ent);
+                }
+
+                this.meta.slotName = newName;
+              }
+            }
+
+            // Update the *existing* method template in place (better install semantics).
+            mt.label = spec.selector;
+            mt.selectorHint = spec.selector;
+            mt.source = spec.source;
+            mt.bytecode = spec.bytecode;
+            mt.instructions = vm.compileBytecode(mt.bytecode);
+            mt.argNames = spec.argNames.slice();
+
+            // Rebuild slots: parent/self + args + temps + literals
+            const parentSlotName = mt.activationParentSlotName || 'self';
+            mt.slots = Object.create(null);
+            vm.addSlot(mt, parentSlotName, null, { isParent: true, isArgument: true });
+            for (const a of spec.argNames) vm.addSlot(mt, a, null, { isArgument: true });
+            for (const t of (spec.tempNames || [])) {
+              if (!vm.hasSlot(mt, t)) vm.addSlot(mt, t, null);
+            }
+            for (const lit of (spec.literals || [])) {
+              vm.intern(lit.slotName);
+              vm.addSlot(mt, lit.slotName, lit.value, { isLiteral: true, literalKind: lit.kind === 'block' ? 'block' : 'constant' });
+            }
+
+            if (holder) {
+              holder.slots[this.meta.slotName].value = mt;
+              Outliners.open(holder).render();
+            }
+
+            // keep UI fields consistent
+            this._methodHeader = spec.headerDisplay || spec.selector;
+            headerInput.value = this._methodHeader;
+            mt.source = bodyTa.value;
+
+            Links.schedule();
+            this.render();
+            toast(holder ? 'Compiled & installed.' : 'Compiled (no holder context).', 'ok');
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            toast(`Compile error: ${msg}`, 'error');
+          }
+        });
+
+        const headerLine = el('div', { class: 'headerLine' }, headerInput, btnCompile);
+        codeWrap.appendChild(headerLine);
+        codeWrap.appendChild(bodyTa);
+        codeWrap.appendChild(el('div', { class: 'evalHint' }, canInstall ? 'Ctrl+Enter: compile & install into holder slot.' : 'Opened method has no holder context; header rename/install disabled.'));
+      } else {
+        const ta = el('textarea', { spellcheck: 'false' }, String(mt.bytecode || ''));
+        const btnApply = el('button', { class: 'btn' }, 'Apply bytecode');
+        btnApply.addEventListener('click', () => {
+          try {
+            mt.bytecode = ta.value;
+            mt.instructions = vm.compileBytecode(mt.bytecode);
+            toast('Bytecode compiled.', 'ok');
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            toast(`Compile error: ${msg}`, 'error');
+          }
+        });
+        codeWrap.appendChild(el('div', { class: 'sectionTitle' }, el('span', {}, 'Bytecode'), btnApply));
+        codeWrap.appendChild(ta);
+      }
+
+      wrapper.appendChild(codeWrap);
+      return wrapper;
+    }
+
+    _renderEvaluator(holderObj) {
+      const wrap = el('div', { class: 'codeArea', style: { marginTop: '12px' } });
+      const tabs = this._renderTabs(this._evalView, (v) => { this._evalView = v; this.render(); });
+
+      const btnEval = el('button', { class: 'btn', title: 'Evaluate (Ctrl+Enter)' }, 'Eval');
+      const title = el('div', { class: 'sectionTitle' }, el('span', {}, 'Evaluator'), el('div', { style: { display: 'flex', gap: '8px', alignItems: 'center' } }, tabs, btnEval));
+      wrap.appendChild(title);
+
+      if (this._evalView === 'source') {
+        const ta = el('textarea', { spellcheck: 'false' }, String(this._evalSource || ''));
+        ta.addEventListener('input', () => { this._evalSource = ta.value; });
+        ta.addEventListener('keydown', (ev) => {
+          if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') { ev.preventDefault(); btnEval.click(); }
+        });
+        btnEval.addEventListener('click', () => {
+          try {
+            const spec = compileSourceToMethodSpec(ta.value, { isMethod: false });
+            this._evalBytecode = spec.bytecode;
+            this._evalLiterals = spec.literals;
+
+            const methodTemplate = vm.newMethodTemplate({
+              label: '(eval)',
+              selectorHint: '(eval)',
+              argNames: [],
+              literals: spec.literals,
+              bytecode: spec.bytecode
+            });
+
+            for (const t of (spec.tempNames || [])) {
+              if (!vm.hasSlot(methodTemplate, t)) vm.addSlot(methodTemplate, t, null);
+            }
+
+
+            const result = vm.invokeMethod(methodTemplate, holderObj, [], { selectorName: '(eval)', holder: holderObj });
+            const openVal = (result && typeof result === 'object') ? result : boxPrimitiveResult(result, '(eval result)');
+            Outliners.open(openVal, { x: parseFloat(this.root.style.left) + 24, y: parseFloat(this.root.style.top) + 52 });
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            toast(`Eval error: ${msg}`, 'error');
+          }
+        });
+        wrap.appendChild(ta);
+      } else {
+        const ta = el('textarea', { spellcheck: 'false' }, String(this._evalBytecode || ''));
+        ta.addEventListener('input', () => { this._evalBytecode = ta.value; });
+        ta.addEventListener('keydown', (ev) => {
+          if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') { ev.preventDefault(); btnEval.click(); }
+        });
+        btnEval.addEventListener('click', () => {
+          try {
+            const methodTemplate = vm.newMethodTemplate({
+              label: '(eval)',
+              selectorHint: '(eval)',
+              argNames: [],
+              literals: this._evalLiterals || [],
+              bytecode: ta.value
+            });
+            const result = vm.invokeMethod(methodTemplate, holderObj, [], { selectorName: '(eval)', holder: holderObj });
+            const openVal = (result && typeof result === 'object') ? result : boxPrimitiveResult(result, '(eval result)');
+            Outliners.open(openVal, { x: parseFloat(this.root.style.left) + 24, y: parseFloat(this.root.style.top) + 52 });
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            toast(`Eval error: ${msg}`, 'error');
+          }
+        });
+        wrap.appendChild(ta);
+      }
+
+      return wrap;
+    }
+
+    _renderSlotRow(holderObj, slot) {
+      const slotName = slot.name;
+      const row = el('div', { class: 'slotRow', dataset: { slotName } });
+
+      const stripeKind = (() => {
+        if (slotName === '(lexicalParent)') return 'lexical';
+        if (slot.isLiteral && slot.literalKind === 'block') return 'literalBlock';
+        if (slot.isLiteral) return 'literal';
+        if (slot.isParent) return 'parent';
+        if (slot.isArgument) return 'arg';
+        if (slot.isReadWrite) return 'rw';
+        if (slot.value && typeof slot.value === 'object' && slot.value.kind === 'methodTemplate') return 'method';
+        return 'data';
+      })();
+
+      const stripe = el('div', { class: 'slotStripe', dataset: { kind: stripeKind }, title: stripeKind });
+
+      const nameEl = el('div', { class: 'slotName', contenteditable: 'true', spellcheck: 'false' }, slotName);
+      nameEl.addEventListener('blur', () => {
+        const newName = nameEl.textContent.trim();
+        if (!newName || newName === slotName) { nameEl.textContent = slotName; return; }
+        if (vm.hasSlot(holderObj, newName)) { toast(`Slot '${newName}' already exists.`, 'error'); nameEl.textContent = slotName; return; }
+
+        holderObj.slots[newName] = Object.assign({}, holderObj.slots[slotName], { name: newName });
+        delete holderObj.slots[slotName];
+
+        const oldKey = Links.key(holderObj.id, slotName);
+        const e = Links.entries.get(oldKey);
+        if (e) {
+          Links.entries.delete(oldKey);
+          e.slotName = newName;
+          Links.entries.set(Links.key(holderObj.id, newName), e);
+        }
+
+        this.render();
+      });
+
+      const valueWrap = el('div', { class: 'slotValue' });
+      const valueChip = el('div', { class: 'slotValueChip', contenteditable: 'true', spellcheck: 'false' }, safeDescribe(slot.value));
+
+      valueChip.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); valueChip.blur(); }
+      });
+
+      valueChip.addEventListener('blur', () => {
+        const parsed = parseValueText(valueChip.textContent);
+        if (!parsed.ok) {
+          toast(parsed.error, 'error');
+          valueChip.textContent = safeDescribe(slot.value);
+          return;
+        }
+        slot.value = parsed.value;
+        valueChip.textContent = safeDescribe(slot.value);
+        if (slot.value && typeof slot.value === 'object' && typeof slot.value.id === 'number') {
+          Links.setTarget(holderObj.id, slotName, slot.value.id);
+        } else {
+          Links.setTarget(holderObj.id, slotName, NaN);
+        }
+        Links.schedule();
+      });
+
+      // Drop: set slot value (object badge), or retarget another slot to this slot's current value.
+      valueChip.addEventListener('dragover', (ev) => {
+        const dt = ev.dataTransfer;
+        if (dt.types.includes(DND.MIME_OBJ) || dt.types.includes(DND.MIME_SLOT_REF)) {
+          ev.preventDefault();
+          dt.dropEffect = 'link';
+          valueChip.classList.add('dropTarget');
+        }
+      });
+      valueChip.addEventListener('dragleave', () => valueChip.classList.remove('dropTarget'));
+      valueChip.addEventListener('drop', (ev) => {
+        const dt = ev.dataTransfer;
+        const obj = DND.getObject(dt.getData(DND.MIME_OBJ));
+        const slotRef = DND.getSlotRef(dt.getData(DND.MIME_SLOT_REF));
+        valueChip.classList.remove('dropTarget');
+
+        if (obj) {
+          ev.preventDefault();
+          slot.value = obj;
+          valueChip.textContent = safeDescribe(slot.value);
+          Links.setTarget(holderObj.id, slotName, obj.id);
+          Links.setVisible(holderObj.id, slotName, true);
+          Links.schedule();
+          return;
+        }
+
+        if (slotRef) {
+          const target = slot.value;
+          if (target && typeof target === 'object') {
+            ev.preventDefault();
+            retargetSlot(slotRef.srcObj, slotRef.slotName, target);
+          }
+        }
+      });
+
+      valueWrap.appendChild(valueChip);
+
+      const flags = el('div', { class: 'slotFlags' },
+        el('label', { class: 'flag' }, el('input', { type: 'checkbox', checked: slot.isParent ? 'checked' : null }), 'parent'),
+        el('label', { class: 'flag' }, el('input', { type: 'checkbox', checked: slot.isArgument ? 'checked' : null }), 'arg'),
+        el('label', { class: 'flag' }, el('input', { type: 'checkbox', checked: slot.isLiteral ? 'checked' : null }), 'lit'),
+        el('label', { class: 'flag', title: 'Read/write slot' }, el('input', { type: 'checkbox', checked: slot.isReadWrite ? 'checked' : null }), 'rw')
+      );
+      const flagInputs = flags.querySelectorAll('input');
+      flagInputs[0].addEventListener('change', () => { slot.isParent = flagInputs[0].checked; });
+      flagInputs[1].addEventListener('change', () => { slot.isArgument = flagInputs[1].checked; });
+      flagInputs[2].addEventListener('change', () => { slot.isLiteral = flagInputs[2].checked; });
+      flagInputs[3].addEventListener('change', () => { slot.isReadWrite = !!flagInputs[3].checked; });
+
+      const actions = el('div', { class: 'slotActions' });
+
+      if (slot.value && typeof slot.value === 'object' && slot.value.kind === 'methodTemplate') {
+        const btnExec = el('button', { class: 'smallBtn', title: 'Execute method and open result' }, 'Exec');
+        btnExec.addEventListener('click', () => {
+          try {
+            const mt = slot.value;
+            const args = [];
+            for (const argName of (mt.argNames || [])) {
+              const input = prompt(`Argument '${argName}':`, '');
+              if (input == null) return;
+              const parsed = parseValueText(input);
+              if (!parsed.ok) { toast(parsed.error, 'error'); return; }
+              args.push(parsed.value);
+            }
+            const result = vm.send(holderObj, slotName, args);
+            const openVal = (result && typeof result === 'object') ? result : boxPrimitiveResult(result, '(result)');
+            Outliners.open(openVal, { x: parseFloat(this.root.style.left) + 24, y: parseFloat(this.root.style.top) + 52 });
+          } catch (e) {
+            toast(e instanceof Error ? e.message : String(e), 'error');
+          }
+        });
+        actions.appendChild(btnExec);
+      }
+
+      const btnDel = el('button', { class: 'smallBtn danger' }, 'Del');
+      btnDel.addEventListener('click', () => {
+        if (!confirm(`Delete slot '${slotName}'?`)) return;
+        delete holderObj.slots[slotName];
+        Links.remove(holderObj.id, slotName);
+        this.render();
+      });
+      actions.appendChild(btnDel);
+
+
+
+      const resolveInspectableTarget = () => {
+        // In this demo VM, literal block slots store a *template* (blockLiteralTemplate).
+        // A real closure object (blockInstance) is only created when the slot is *resolved* for a send,
+        // because it needs the current activation as lexical parent.
+        if (slot.isLiteral && slot.literalKind === 'block' && slot.value && typeof slot.value === 'object' && slot.value.kind === 'blockLiteralTemplate') {
+          const k = `${holderObj.id}:${slotName}`;
+          if (!this._blockInstanceCache.has(k)) {
+            const inst = vm.instantiateBlockLiteral(slot.value, vm.systemContext.currentActivation);
+            this._blockInstanceCache.set(k, inst);
+          }
+          return this._blockInstanceCache.get(k);
+        }
+        return slot.value;
+      };
+
+      const handle = el('div', { class: 'grip', draggable: 'true', title: 'Click: open referenced object / toggle line. Drag: retarget reference.' }, '::');
+      Links.bindFromEl(holderObj.id, slotName, handle);
+
+      const syncHandle = () => {
+        const target = resolveInspectableTarget();
+        if (target && typeof target === 'object' && typeof target.id === 'number') Links.setTarget(holderObj.id, slotName, target.id);
+        else Links.setTarget(holderObj.id, slotName, NaN);
+      };
+      syncHandle();
+
+      handle.addEventListener('dragstart', (ev) => {
+        DND.setSlotRef(ev.dataTransfer, holderObj, slotName);
+        ev.dataTransfer.effectAllowed = 'link';
+      });
+
+      handle.addEventListener('click', (ev) => {
+        const rawTarget = slot.value;
+        if (!rawTarget || typeof rawTarget !== 'object') return;
+
+        // Shift-click opens the literal *template* object (useful for seeing its method/object templates).
+        const target = (ev && ev.shiftKey) ? rawTarget : resolveInspectableTarget();
+        if (!target || typeof target !== 'object') return;
+
+        const wasOpen = Outliners.windows.has(identityKey(target));
+
+        // If this is a methodTemplate, pass holder context so header edits can rename the slot.
+        const meta = (target.kind === 'methodTemplate') ? { holderId: holderObj.id, slotName } : null;
+        Outliners.open(target, { x: parseFloat(this.root.style.left) + 24, y: parseFloat(this.root.style.top) + 52 }, meta);
+
+        if (wasOpen) Links.toggleVisible(holderObj.id, slotName);
+        else Links.setVisible(holderObj.id, slotName, true);
+        Links.schedule();
+      });
+      row.dataset.controls = 'closed';
+
+      const toggleBtn = el('button', { class: 'slotToggle', title: 'Show/hide slot controls' }, '▾');
+      toggleBtn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const open = row.dataset.controls === 'open';
+        row.dataset.controls = open ? 'closed' : 'open';
+        toggleBtn.textContent = open ? '▾' : '▴';
+      });
+
+      const top = el('div', { class: 'slotTop' },
+        toggleBtn,
+        nameEl,
+        valueWrap,
+        handle
+      );
+
+      const bottom = el('div', { class: 'slotBottom' }, flags, actions);
+
+      row.append(stripe, top, bottom);
+
+      return row;
+    }
+  }
+
+  function retargetSlot(srcObj, slotName, targetObj) {
+    try {
+      if (!srcObj || !srcObj.slots) return;
+      if (!vm.hasSlot(srcObj, slotName)) { toast(`Source slot missing: ${slotName}`, 'error'); return; }
+      srcObj.slots[slotName].value = targetObj;
+      if (targetObj && typeof targetObj === 'object' && typeof targetObj.id === 'number') Links.setTarget(srcObj.id, slotName, targetObj.id);
+      else Links.setTarget(srcObj.id, slotName, NaN);
+      Links.setVisible(srcObj.id, slotName, true);
+      Links.schedule();
+      toast(`Retargeted ${srcObj.label || '#' + srcObj.id}.${slotName} -> ${safeDescribe(targetObj)}`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), 'error');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Toolbar wiring
+  // ---------------------------------------------------------------------------
+
+  $('#btnOpenLobby').addEventListener('click', () => Outliners.open(vm.lobby));
+  $('#btnOpenGlobals').addEventListener('click', () => {
+    const g = getGlobals();
+    if (g) Outliners.open(g);
+  });
+  $('#btnOpenDemos').addEventListener('click', () => {
+    const d = getDemos();
+    if (d) Outliners.open(d);
+  });
+
+  $('#btnNewObject').addEventListener('click', () => {
+    const obj = vm.newObject('object');
+    obj.label = `object#${obj.id}`;
+    try {
+      const traits = vm.getSlotValue(vm.lobby, 'traits');
+      const traitsObject = vm.getSlotValue(traits, 'object');
+      vm.addSlot(obj, 'parent', traitsObject, { isParent: true });
+    } catch {}
+    Outliners.open(obj);
+  });
+
+  
+  // Theme switcher: system (default) -> dark -> light
+  const btnTheme = $('#btnTheme');
+  const themeModes = ['system', 'dark', 'light'];
+  const applyTheme = (mode) => {
+    const m = themeModes.includes(mode) ? mode : 'system';
+    if (m === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', m);
+    try { localStorage.setItem('self_outliner_theme', m); } catch {}
+    if (btnTheme) btnTheme.textContent = `Theme: ${m}`;
+  };
+  const nextTheme = () => {
+    const cur = (document.documentElement.getAttribute('data-theme') || 'system');
+    const i = themeModes.indexOf(cur);
+    const n = themeModes[(i + 1) % themeModes.length];
+    applyTheme(n);
+  };
+  if (btnTheme) {
+    btnTheme.addEventListener('click', () => nextTheme());
+    let saved = 'system';
+    try { saved = localStorage.getItem('self_outliner_theme') || 'system'; } catch {}
+    applyTheme(saved);
+  }
+
+$('#btnToggleLines').addEventListener('click', (ev) => {
+    Links.toggleAllHidden();
+    ev.currentTarget.textContent = Links.hiddenAll ? 'Show lines' : 'Hide lines';
+  });
+
+  // Save/load .selfImage
+  const btnSaveImage = $('#btnSaveImage');
+  if (btnSaveImage && window.SelfImage) {
+    btnSaveImage.addEventListener('click', () => {
+      try {
+        const image = {
+          version: 1,
+          createdAt: new Date().toISOString(),
+          vm: SelfImage.serializeVm(vm),
+          ui: SelfImage.captureUi(Outliners, Links)
+        };
+        const stamp = image.createdAt.replace(/[:.]/g, '-');
+        SelfImage.downloadImage(image, `snapshot-${stamp}.selfImage`);
+      } catch (e) {
+        toast(e instanceof Error ? e.message : String(e), 'error');
+      }
+    });
+  }
+
+  const clearAllOutlinersAndLinks = () => {
+    for (const w of Outliners.windows.values()) {
+      try { if (w._resizeObs) w._resizeObs.disconnect(); } catch {}
+      try { w.root.remove(); } catch {}
+    }
+    Outliners.windows.clear();
+    for (const e of Links.entries.values()) {
+      try { e.path.remove(); } catch {}
+    }
+    Links.entries.clear();
+    Links.hiddenAll = false;
+    const btnLines = $('#btnToggleLines');
+    if (btnLines) btnLines.textContent = 'Hide lines';
+    Links.schedule();
+  };
+
+  const restoreUiFromImage = (ui, idToObj) => {
+    const outliners = Array.isArray(ui && ui.outliners) ? ui.outliners : [];
+    for (const w of outliners) {
+      const obj = findObjectById(w.objectId);
+      if (!obj) continue;
+      const win = Outliners.open(obj, { x: w.x, y: w.y });
+      if (Number.isFinite(w.w)) win.root.style.width = `${w.w}px`;
+      if (Number.isFinite(w.h)) win.root.style.height = `${w.h}px`;
+      win.root.style.left = `${w.x}px`;
+      win.root.style.top = `${w.y}px`;
+
+      // Restore evaluator content
+      const ev = w.evaluator || null;
+      if (ev) {
+        win._evalView = ev.view || 'source';
+        win._evalSource = String(ev.source || '');
+        win._evalBytecode = String(ev.bytecode || '');
+        if (window.SelfImage && idToObj && Array.isArray(ev.literals)) {
+          win._evalLiterals = ev.literals.map((lit) => ({
+            kind: lit.kind,
+            slotName: lit.slotName,
+            value: SelfImage.decodeValue(vm, idToObj, lit.value)
+          }));
+        }
+      }
+      win.render();
+    }
+
+    const links = Array.isArray(ui && ui.links) ? ui.links : [];
+    for (const l of links) {
+      const src = findObjectById(l.sourceId);
+      if (!src || !src.slots || !src.slots[l.slotName]) continue;
+      const val = src.slots[l.slotName].value;
+      if (val && typeof val === 'object' && typeof val.id === 'number') {
+        Links.setTarget(l.sourceId, l.slotName, val.id);
+      } else {
+        Links.setTarget(l.sourceId, l.slotName, NaN);
+      }
+      Links.setVisible(l.sourceId, l.slotName, true);
+    }
+    Links.schedule();
+  };
+
+  const loadImageObject = (image) => {
+    if (!window.SelfImage) throw new Error('SelfImage module not loaded.');
+    if (!image || !image.vm) throw new Error('Invalid image.');
+    clearAllOutlinersAndLinks();
+    const { idToObj } = SelfImage.materializeInto(vm, image.vm);
+    restoreUiFromImage(image.ui || {}, idToObj);
+  };
+
+
+  // Expose runtime for Selfie (VM view, saving, etc.)
+  window.SelfieRuntime = {
+    vm,
+    Outliners,
+    Links,
+    loadImageObject,
+    clearAllOutlinersAndLinks
+  };
+
+  // Auto-load embedded system image (Selfie.html saved state), if present.
+  let didLoadEmbeddedImage = false;
+  const embeddedImageEl = document.getElementById('selfie-image');
+  if (embeddedImageEl) {
+    const txt = String(embeddedImageEl.textContent || '').trim();
+    if (txt) {
+      try {
+        const img = JSON.parse(txt);
+        if (img && img.vm) {
+          loadImageObject(img);
+          didLoadEmbeddedImage = true;
+        }
+      } catch {}
+    }
+  }
+
+  const handleImageFile = (file) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const image = SelfImage.parseImageText(String(reader.result || ''));
+        loadImageObject(image);
+        toast('Image loaded.', 'ok');
+      } catch (e) {
+        toast(e instanceof Error ? e.message : String(e), 'error');
+      }
+    };
+    reader.onerror = () => toast('Failed to read image file.', 'error');
+    reader.readAsText(file);
+  };
+
+  // Drag & drop .selfImage on the page to restore.
+  document.addEventListener('dragover', (ev) => {
+    const dt = ev.dataTransfer;
+    if (!dt) return;
+    const has = Array.from(dt.items || []).some(it => it.kind === 'file');
+    if (has) ev.preventDefault();
+  });
+  document.addEventListener('drop', (ev) => {
+    const dt = ev.dataTransfer;
+    if (!dt || !dt.files || dt.files.length === 0) return;
+    const f = dt.files[0];
+    if (!f || !/\.selfImage$/i.test(f.name || '')) return;
+    ev.preventDefault();
+    if (!window.SelfImage) {
+      toast('SelfImage module missing.', 'error');
+      return;
+    }
+    handleImageFile(f);
+  });
+
+  $('#search').addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Enter') return;
+    const q = ev.currentTarget.value.trim();
+    if (!q) return;
+
+    let obj = null;
+    const mId = q.match(/^#?(\d+)$/);
+    if (mId) obj = findObjectById(mId[1]);
+    if (!obj) obj = findObjectByLabel(q);
+
+    if (!obj) { toast(`No object found for '${q}'.`, 'error'); return; }
+    Outliners.open(obj);
+  });
+
+  // Initial windows
+  if (!didLoadEmbeddedImage) {
+    Outliners.open(vm.lobby, { x: 22, y: 72 });
+    const demos0 = getDemos();
+    if (demos0) Outliners.open(demos0, { x: 660, y: 92 });
+  }
+
+  // VMError surface
+  window.addEventListener('error', (ev) => {
+    if (ev.error instanceof VMError) toast(ev.error.message, 'error');
+  });
+
+})();
+
+  </script>
+  <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_save.js">
+(function(global){
+  'use strict';
+
+  function nowStamp() {
+    const d = new Date();
+    return d.toISOString().replace(/[:.]/g, '-');
+  }
+
+  function gatherSystemImage() {
+    const rt = global.SelfieRuntime;
+    const SI = global.SelfImage;
+    if (rt && SI && rt.vm && rt.Outliners && rt.Links) {
+      return {
+        format: 'SelfieImage',
+        version: 1,
+        createdAt: new Date().toISOString(),
+        vm: SI.serializeVm(rt.vm),
+        ui: SI.captureUi(rt.Outliners, rt.Links)
+      };
+    }
+    // fallback: embedded json
+    const el = document.getElementById('selfie-image');
+    if (el) {
+      const txt = String(el.textContent || '').trim();
+      if (txt) {
+        try { return JSON.parse(txt); } catch {}
+      }
+    }
+    return { format: 'SelfieImage', version: 1, createdAt: new Date().toISOString(), vm: { objects: [] }, ui: {} };
+  }
+
+  function buildHtmlString() {
+    const image = gatherSystemImage();
+
+    const clone = document.documentElement.cloneNode(true);
+
+    // Ensure/replace embedded image json
+    let imgEl = clone.querySelector('#selfie-image');
+    if (!imgEl) {
+      imgEl = clone.ownerDocument.createElement('script');
+      imgEl.id = 'selfie-image';
+      imgEl.type = 'application/json';
+      clone.querySelector('body')?.appendChild(imgEl);
+    }
+    imgEl.textContent = JSON.stringify(image, null, 2);
+
+    // Clear runtime UI (outliners, toasts, editor widgets)
+    const ws = clone.querySelector('#workspace');
+    if (ws) ws.innerHTML = '';
+
+    const toast = clone.querySelector('#toast');
+    if (toast) { toast.textContent = ''; toast.classList.remove('show'); }
+
+    // Remove CodeMirror widgets (leave textarea)
+    clone.querySelectorAll('.CodeMirror').forEach(n => n.remove());
+    const ta = clone.querySelector('#fileEditor');
+    if (ta) { ta.style.display = ''; ta.removeAttribute('data-gramm'); }
+
+    return '<!doctype html>\n' + clone.outerHTML;
+  }
+
+  function downloadHtml() {
+    const html = buildHtmlString();
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Selfie-${nowStamp()}.html`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  global.SelfieSave = {
+    buildHtmlString,
+    downloadHtml
+  };
+})(window);
+  </script>
+  <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_shell.js">
+(function(global){
+  'use strict';
+
+  const $ = (sel, root=document) => root.querySelector(sel);
+
+  function listFileElements() {
+    const styles = Array.from(document.querySelectorAll('style[data-selfie-file="true"][data-name]'))
+      .map(el => ({ kind: 'style', name: el.dataset.name, el }));
+    const scripts = Array.from(document.querySelectorAll('script[type="application/x-selfie-script"][data-selfie-file="true"][data-name]'))
+      .map(el => ({ kind: 'script', name: el.dataset.name, el }));
+    const all = styles.concat(scripts);
+    all.sort((a,b) => (a.kind===b.kind ? a.name.localeCompare(b.name) : a.kind.localeCompare(b.kind)));
+    return all;
+  }
+
+  function inferMode(name, kind) {
+    const n = String(name||'');
+    if (n.endsWith('.css') || kind === 'style') return 'css';
+    if (n.endsWith('.html')) return 'htmlmixed';
+    return 'javascript';
+  }
+
+  function cmThemeFromDoc() {
+    const t = document.documentElement.getAttribute('data-theme');
+    if (t === 'dark') return 'material-darker';
+    if (t === 'light') return 'eclipse';
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'material-darker'
+      : 'eclipse';
+  }
+
+  function downloadText(text, filename) {
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function exportAllZip(files) {
+    if (!global.JSZip) {
+      for (const f of files) downloadText(f.el.textContent || '', f.name);
+      return;
+    }
+    const zip = new global.JSZip();
+    for (const f of files) zip.file(f.name, f.el.textContent || '');
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Selfie-files.zip';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  const SelfieShell = {
+    cm: null,
+    active: null,
+    files: [],
+
+    start() {
+      const btnViewImage = $('#btnViewImage');
+      const btnViewVM = $('#btnViewVM');
+      const vmRoot = $('#vmRoot');
+      const imgPane = $('#imagePane');
+
+      const setView = (view) => {
+        const isVM = view === 'vm';
+        if (vmRoot) vmRoot.setAttribute('aria-hidden', isVM ? 'false' : 'true');
+        if (imgPane) imgPane.style.display = isVM ? 'none' : 'block';
+        if (btnViewImage) btnViewImage.setAttribute('aria-pressed', isVM ? 'false' : 'true');
+        if (btnViewVM) btnViewVM.setAttribute('aria-pressed', isVM ? 'true' : 'false');
+        if (isVM && this.cm) this.cm.refresh();
+      };
+
+      if (btnViewImage) btnViewImage.addEventListener('click', () => setView('image'));
+      if (btnViewVM) btnViewVM.addEventListener('click', () => setView('vm'));
+      setView('image');
+
+      const ta = $('#fileEditor');
+      if (ta && global.CodeMirror) {
+        this.cm = global.CodeMirror.fromTextArea(ta, {
+          lineNumbers: true,
+          mode: 'javascript',
+          theme: cmThemeFromDoc(),
+          indentUnit: 2,
+          tabSize: 2,
+          viewportMargin: Infinity
+        });
+      }
+
+      const mo = new MutationObserver(() => {
+        if (this.cm) this.cm.setOption('theme', cmThemeFromDoc());
+      });
+      mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+      const btnSaveSystem = $('#btnSaveSystem');
+      if (btnSaveSystem) btnSaveSystem.addEventListener('click', () => {
+        if (global.SelfieSave) global.SelfieSave.downloadHtml();
+        else alert('SelfieSave not loaded.');
+      });
+
+      const btnAddScript = $('#btnAddScript');
+      const btnAddStyle = $('#btnAddStyle');
+      const btnExportAll = $('#btnExportAll');
+
+      if (btnAddScript) btnAddScript.addEventListener('click', () => this.addFile('script'));
+      if (btnAddStyle) btnAddStyle.addEventListener('click', () => this.addFile('style'));
+      if (btnExportAll) btnExportAll.addEventListener('click', () => exportAllZip(this.files.filter(f => !f.isPseudo)));
+
+      const dropZone = $('#vmList');
+      if (dropZone) {
+        dropZone.addEventListener('dragover', (ev) => { ev.preventDefault(); });
+        dropZone.addEventListener('drop', (ev) => this.handleDrop(ev));
+      }
+
+      const btnFileSave = $('#btnFileSave');
+      const btnFileRevert = $('#btnFileRevert');
+      const btnFileExport = $('#btnFileExport');
+
+      if (btnFileSave) btnFileSave.addEventListener('click', () => this.saveActive());
+      if (btnFileRevert) btnFileRevert.addEventListener('click', () => this.loadActive());
+      if (btnFileExport) btnFileExport.addEventListener('click', () => this.exportActive());
+
+      this.refreshList();
+      this.selectByName('Selfie.html', true);
+    },
+
+    refreshList() {
+      const list = $('#vmList');
+      if (!list) return;
+
+      const real = listFileElements().map(f => ({ ...f, isPseudo: false }));
+      const pseudo = [{ kind: 'html', name: 'Selfie.html', isPseudo: true }];
+
+      this.files = pseudo.concat(real);
+
+      list.innerHTML = '';
+      for (const f of this.files) {
+        const item = document.createElement('div');
+        item.className = 'vmItem';
+        item.dataset.active = (this.active && this.active.name === f.name && (!!this.active.isPseudo) === (!!f.isPseudo)) ? 'true' : 'false';
+
+        const name = document.createElement('div');
+        name.className = 'vmItem__name';
+        name.textContent = f.name;
+
+        const badge = document.createElement('span');
+        badge.className = 'vmBadge';
+        badge.textContent = f.kind;
+
+        item.appendChild(name);
+        item.appendChild(badge);
+
+        item.addEventListener('click', () => this.selectFile(f));
+
+        if (!f.isPseudo) {
+          item.addEventListener('contextmenu', (ev) => {
+            ev.preventDefault();
+            const action = prompt(`Action for ${f.name}: rename / delete / export`, 'rename');
+            if (!action) return;
+            const a = action.trim().toLowerCase();
+            if (a === 'rename') this.renameFile(f);
+            else if (a === 'delete') this.deleteFile(f);
+            else if (a === 'export') downloadText(f.el.textContent || '', f.name);
+          });
+        }
+
+        list.appendChild(item);
+      }
+    },
+
+    selectByName(name, isPseudo) {
+      const f = this.files.find(x => x.name === name && (!!x.isPseudo) === (!!isPseudo));
+      if (f) this.selectFile(f);
+    },
+
+    selectFile(f) {
+      this.active = f;
+      this.refreshList();
+      this.loadActive();
+    },
+
+    loadActive() {
+      const f = this.active;
+      const title = $('#vmEditorTitle');
+      if (title) title.textContent = f ? f.name : '(none)';
+
+      if (!this.cm) return;
+
+      if (!f) { this.cm.setValue(''); this.cm.setOption('readOnly', true); return; }
+
+      if (f.isPseudo && f.kind === 'html') {
+        const html = global.SelfieSave ? global.SelfieSave.buildHtmlString() : '<html><!-- SelfieSave missing --></html>';
+        this.cm.setOption('mode', 'htmlmixed');
+        this.cm.setValue(html);
+        this.cm.setOption('readOnly', true);
+        return;
+      }
+
+      this.cm.setOption('mode', inferMode(f.name, f.kind));
+      this.cm.setValue(f.el.textContent || '');
+      this.cm.setOption('readOnly', false);
+    },
+
+    saveActive() {
+      const f = this.active;
+      if (!f || f.isPseudo) return;
+      if (!this.cm) return;
+      f.el.textContent = this.cm.getValue();
+      this.refreshList();
+    },
+
+    exportActive() {
+      const f = this.active;
+      if (!f) return;
+      if (f.isPseudo && f.kind === 'html') {
+        const html = global.SelfieSave ? global.SelfieSave.buildHtmlString() : '';
+        downloadText(html, 'Selfie.html');
+        return;
+      }
+      if (!f.isPseudo) downloadText(f.el.textContent || '', f.name);
+    },
+
+    addFile(kind) {
+      const name0 = prompt(`New ${kind} name:`, kind === 'script' ? 'new.js' : 'new.css');
+      if (!name0) return;
+      let name = name0.trim();
+      if (!name) return;
+      if (kind === 'script' && !name.endsWith('.js')) name += '.js';
+      if (kind === 'style' && !name.endsWith('.css')) name += '.css';
+
+      if (listFileElements().some(f => f.name === name)) { alert('File already exists.'); return; }
+
+      if (kind === 'style') {
+        const st = document.createElement('style');
+        st.dataset.selfieFile = 'true';
+        st.dataset.name = name;
+        st.textContent = '/* new style */\n';
+        document.head.appendChild(st);
+      } else {
+        const sc = document.createElement('script');
+        sc.type = 'application/x-selfie-script';
+        sc.dataset.selfieFile = 'true';
+        sc.dataset.name = name;
+        sc.textContent = `// ${name}
+`;
+        const boot = document.getElementById('selfie-boot');
+        (boot && boot.parentNode ? boot.parentNode : document.body).insertBefore(sc, boot || null);
+      }
+
+      this.refreshList();
+      this.selectByName(name, false);
+    },
+
+    renameFile(f) {
+      const newName0 = prompt('Rename to:', f.name);
+      if (!newName0) return;
+      const newName = newName0.trim();
+      if (!newName || newName === f.name) return;
+      if (listFileElements().some(x => x.name === newName)) { alert('Name already exists.'); return; }
+      f.el.dataset.name = newName;
+      this.refreshList();
+      this.selectByName(newName, false);
+    },
+
+    deleteFile(f) {
+      if (!confirm(`Delete ${f.name}?`)) return;
+      try { f.el.remove(); } catch {}
+      this.active = null;
+      this.refreshList();
+      this.selectByName('Selfie.html', true);
+    },
+
+    async handleDrop(ev) {
+      ev.preventDefault();
+      const files = Array.from(ev.dataTransfer.files || []);
+      for (const file of files) {
+        const name = file.name || '';
+        const isJS = /\.js$/i.test(name);
+        const isCSS = /\.css$/i.test(name);
+        if (!isJS && !isCSS) continue;
+
+        const text = await file.text();
+        const existing = listFileElements().find(f => f.name === name);
+        if (existing) {
+          existing.el.textContent = text;
+        } else {
+          if (isCSS) {
+            const st = document.createElement('style');
+            st.dataset.selfieFile = 'true';
+            st.dataset.name = name;
+            st.textContent = text;
+            document.head.appendChild(st);
+          } else {
+            const sc = document.createElement('script');
+            sc.type = 'application/x-selfie-script';
+            sc.dataset.selfieFile = 'true';
+            sc.dataset.name = name;
+            sc.textContent = text;
+            const boot = document.getElementById('selfie-boot');
+            (boot && boot.parentNode ? boot.parentNode : document.body).insertBefore(sc, boot || null);
+          }
+        }
+      }
+      this.refreshList();
+    }
+  };
+
+  global.SelfieShell = SelfieShell;
+})(window);
+  </script>
+
+  <!-- Boot (executes the script files above) -->
+  <script id="selfie-boot" data-selfie-file="true" data-name="selfie_boot.js">
+(function(){
+  'use strict';
+  function run() {
+    const scripts = Array.from(document.querySelectorAll('script[type="application/x-selfie-script"][data-selfie-file="true"]'));
+    for (const s of scripts) {
+      const name = s.dataset.name || '(script)';
+      const code = String(s.textContent || '');
+      try {
+        // eslint-disable-next-line no-new-func
+        new Function(code)();
+      } catch (e) {
+        console.error('Selfie boot error in', name, e);
+        alert('Selfie boot error in ' + name + ': ' + (e && e.message ? e.message : e));
+        return;
+      }
+    }
+    if (window.SelfieShell && typeof window.SelfieShell.start === 'function') {
+      window.SelfieShell.start();
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})();
+  </script>
+</body>
+</html>
