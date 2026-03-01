@@ -227,6 +227,18 @@ html, body {
   filter: drop-shadow(0 1px 2px rgba(0,0,0,.45));
 }
 
+.linkEndpoint {
+  fill: rgba(var(--accent-rgb), .30);
+  stroke: rgba(var(--accent-rgb), .65);
+  stroke-width: 2;
+  pointer-events: all;
+  cursor: pointer;
+}
+.linkEndpoint:hover {
+  fill: rgba(var(--accent-rgb), .55);
+}
+
+
 .outliner {
   position: absolute;
   min-width: 300px;
@@ -2998,18 +3010,33 @@ function blockValueSelectorForArity(n) {
 
     key(srcId, slotName) { return `${srcId}:${slotName}`; },
 
-    _ensure(srcId, slotName) {
-      const k = this.key(srcId, slotName);
-      let e = this.entries.get(k);
-      if (!e) {
-        const path = document.createElementNS(SVG_NS, 'path');
-        path.classList.add('linkLine');
-        linkLayer.appendChild(path);
-        e = { srcId, slotName, fromEl: null, targetId: NaN, visible: false, path };
-        this.entries.set(k, e);
-      }
-      return e;
-    },
+
+_ensure(srcId, slotName) {
+  const k = this.key(srcId, slotName);
+  let e = this.entries.get(k);
+  if (!e) {
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.classList.add('linkLine');
+
+    const circle = document.createElementNS(SVG_NS, 'circle');
+    circle.classList.add('linkEndpoint');
+    circle.setAttribute('r', '5');
+    circle.style.display = 'none';
+    circle.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      Links.setVisible(srcId, slotName, false);
+    });
+
+    linkLayer.appendChild(path);
+    linkLayer.appendChild(circle);
+
+    e = { srcId, slotName, fromEl: null, targetId: NaN, visible: false, path, circle };
+    this.entries.set(k, e);
+  }
+  return e;
+},
+
 
     bindFromEl(srcId, slotName, fromEl) {
       const e = this._ensure(srcId, slotName);
@@ -3035,14 +3062,17 @@ function blockValueSelectorForArity(n) {
       this.schedule();
     },
 
-    remove(srcId, slotName) {
-      const k = this.key(srcId, slotName);
-      const e = this.entries.get(k);
-      if (!e) return;
-      e.path.remove();
-      this.entries.delete(k);
-      this.schedule();
-    },
+
+remove(srcId, slotName) {
+  const k = this.key(srcId, slotName);
+  const e = this.entries.get(k);
+  if (!e) return;
+  e.path.remove();
+  if (e.circle) e.circle.remove();
+  this.entries.delete(k);
+  this.schedule();
+},
+
 
     toggleAllHidden() {
       this.hiddenAll = !this.hiddenAll;
@@ -3062,40 +3092,123 @@ function blockValueSelectorForArity(n) {
       return { x: (r.left - wsRect.left) + r.width / 2, y: (r.top - wsRect.top) + r.height / 2 };
     },
 
-    draw() {
-      const wsRect = workspace.getBoundingClientRect();
-      const w = Math.max(1, wsRect.width);
-      const h = Math.max(1, wsRect.height);
-      linkLayer.setAttribute('width', String(w));
-      linkLayer.setAttribute('height', String(h));
-      linkLayer.setAttribute('viewBox', `0 0 ${w} ${h}`);
 
-      for (const e of this.entries.values()) {
-        const fromEl = e.fromEl;
-        const targetObj = Number.isFinite(e.targetId) ? findObjectById(e.targetId) : null;
-        const targetWin = targetObj ? Outliners.windows.get(identityKey(targetObj)) : null;
-        const canDraw = !this.hiddenAll && e.visible && fromEl && fromEl.isConnected && targetWin && targetWin.header && targetWin.header.isConnected;
+  draw() {
+    const wsRect = workspace.getBoundingClientRect();
+    const w = Math.max(1, wsRect.width);
+    const h = Math.max(1, wsRect.height);
+    linkLayer.setAttribute('width', String(w));
+    linkLayer.setAttribute('height', String(h));
+    linkLayer.setAttribute('viewBox', `0 0 ${w} ${h}`);
 
-        if (!canDraw) {
-          e.path.style.display = 'none';
-          if (fromEl && fromEl.isConnected) fromEl.dataset.active = 'false';
-          continue;
+    const intersectRect = (p1, p2, rect) => {
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      if (dx === 0 && dy === 0) return null;
+
+      const candidates = [];
+
+      const pushIf = (t, x, y) => {
+        if (!(t > 0)) return;
+        if (x >= rect.x - 0.01 && x <= rect.x + rect.w + 0.01 && y >= rect.y - 0.01 && y <= rect.y + rect.h + 0.01) {
+          candidates.push({ t, x, y });
         }
+      };
 
-        const p1 = this._center(fromEl, wsRect);
-        const p2 = this._center(targetWin.header, wsRect);
-        const dx = Math.max(28, Math.min(240, Math.abs(p2.x - p1.x) * 0.5));
-        const c1x = p1.x + dx;
-        const c2x = p2.x - dx;
-        e.path.setAttribute('d', `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} C ${c1x.toFixed(1)} ${p1.y.toFixed(1)} ${c2x.toFixed(1)} ${p2.y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`);
-        e.path.style.display = '';
-        fromEl.dataset.active = 'true';
+      if (dx !== 0) {
+        const tL = (rect.x - p1.x) / dx;
+        pushIf(tL, rect.x, p1.y + tL * dy);
+        const tR = (rect.x + rect.w - p1.x) / dx;
+        pushIf(tR, rect.x + rect.w, p1.y + tR * dy);
       }
-    }
-  };
+      if (dy !== 0) {
+        const tT = (rect.y - p1.y) / dy;
+        pushIf(tT, p1.x + tT * dx, rect.y);
+        const tB = (rect.y + rect.h - p1.y) / dy;
+        pushIf(tB, p1.x + tB * dx, rect.y + rect.h);
+      }
 
-  // ---------------------------------------------------------------------------
-  // Outliner manager
+      if (candidates.length === 0) return null;
+      candidates.sort((a, b) => a.t - b.t);
+      return { x: candidates[0].x, y: candidates[0].y };
+    };
+
+
+
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+    const insideRect = (p, rect) =>
+      p.x >= rect.x && p.x <= rect.x + rect.w && p.y >= rect.y && p.y <= rect.y + rect.h;
+
+    const closestBorderPoint = (p, rect) => {
+      const dl = p.x - rect.x;
+      const dr = (rect.x + rect.w) - p.x;
+      const dt = p.y - rect.y;
+      const db = (rect.y + rect.h) - p.y;
+
+      const minH = Math.min(dl, dr);
+      const minV = Math.min(dt, db);
+
+      // Prefer horizontal (left/right) when tied.
+      if (minH <= minV) {
+        if (dl <= dr) return { x: rect.x, y: clamp(p.y, rect.y, rect.y + rect.h) };
+        return { x: rect.x + rect.w, y: clamp(p.y, rect.y, rect.y + rect.h) };
+      }
+      if (dt <= db) return { x: clamp(p.x, rect.x, rect.x + rect.w), y: rect.y };
+      return { x: clamp(p.x, rect.x, rect.x + rect.w), y: rect.y + rect.h };
+    };
+    for (const e of this.entries.values()) {
+      const fromEl = e.fromEl;
+      const targetObj = Number.isFinite(e.targetId) ? findObjectById(e.targetId) : null;
+      const targetWin = targetObj ? Outliners.windows.get(identityKey(targetObj)) : null;
+
+      const canDraw = !this.hiddenAll
+        && e.visible
+        && fromEl && fromEl.isConnected
+        && targetWin && targetWin.root && targetWin.root.isConnected;
+
+      if (!canDraw) {
+        e.path.style.display = 'none';
+        if (e.circle) e.circle.style.display = 'none';
+        if (fromEl && fromEl.isConnected) fromEl.dataset.active = 'false';
+        continue;
+      }
+
+      const p1 = this._center(fromEl, wsRect);
+
+      const tr = targetWin.root.getBoundingClientRect();
+      const rect = { x: tr.left - wsRect.left, y: tr.top - wsRect.top, w: tr.width, h: tr.height };
+      const center = { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 };
+      const startInside = insideRect(p1, rect);
+      const end = startInside ? closestBorderPoint(p1, rect) : (intersectRect(p1, center, rect) || center);
+
+      if (startInside) {
+        // If the start point is inside the target outliner, only show the endpoint circle on the border.
+        e.path.style.display = 'none';
+      } else {
+        // Curve from handle to border point.
+        const dx = Math.max(28, Math.min(240, Math.abs(end.x - p1.x) * 0.5));
+        const c1x = p1.x + dx;
+        const c2x = end.x - dx;
+
+        e.path.setAttribute('d', `M ${p1.x.toFixed(1)} ${p1.y.toFixed(1)} C ${c1x.toFixed(1)} ${p1.y.toFixed(1)} ${c2x.toFixed(1)} ${end.y.toFixed(1)} ${end.x.toFixed(1)} ${end.y.toFixed(1)}`);
+        e.path.style.display = '';
+      }
+
+      if (e.circle) {
+        e.circle.setAttribute('cx', end.x.toFixed(1));
+        e.circle.setAttribute('cy', end.y.toFixed(1));
+        e.circle.style.display = '';
+      }
+
+      fromEl.dataset.active = 'true';
+    }
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Outliner manager
+
   // ---------------------------------------------------------------------------
 
   const Outliners = {
