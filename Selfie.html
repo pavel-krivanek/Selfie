@@ -587,6 +587,22 @@ html, body {
 @media (prefers-color-scheme: dark){
   .helpDoc code{ background: rgba(255,255,255,.08); }
 }
+
+
+/* Error report outliner */
+.outliner[data-kind="errorReport"] {
+  border-color: rgba(255, 90, 90, .85);
+}
+
+.outliner[data-kind="errorReport"] .outliner__header {
+  background: linear-gradient(180deg, rgba(255,90,90,.22), rgba(255,90,90,.10));
+  border-bottom-color: rgba(255, 90, 90, .45);
+}
+
+.outliner[data-kind="errorReport"] .badge {
+  border-color: rgba(255, 90, 90, .55);
+  color: rgba(255, 130, 130, 1);
+}
 </style>
 
   <style data-selfie-file="true" data-name="selfie_shell.css">
@@ -1392,6 +1408,17 @@ this.addSlot(traitsBlock, 'value:With:With:With:', makePrimitiveWrapperMethod('v
       ctx.currentActivation = activation;
       try {
         return this.executeActivation(activation);
+      } catch (e) {
+        if (e instanceof VMError) {
+          if (!e.context) e.context = {};
+          e.context.currentActivation = activation;
+          e.context.activationStack = ctx.activationStack.slice();
+          const computed = ctx.activationStack.filter((a) => !!a).concat([activation]);
+          if (!Array.isArray(e.context.callStack) || computed.length > e.context.callStack.length) {
+            e.context.callStack = computed;
+          }
+        }
+        throw e;
       } finally {
         ctx.currentActivation = ctx.activationStack.pop();
       }
@@ -2867,6 +2894,28 @@ function blockValueSelectorForArity(n) {
     toast._tm = window.setTimeout(() => t.classList.remove('show'), 2400);
   }
 
+function openErrorReport(err) {
+  try {
+    const message = err instanceof Error ? err.message : String(err);
+    const report = vm.newObject(`Error: ${message}`);
+    report.kind = 'errorReport';
+    vm.addSlot(report, 'error', makeStringObject(message));
+
+    const callStack = (err && err.context && Array.isArray(err.context.callStack)) ? err.context.callStack : [];
+    for (const act of callStack) {
+      if (!act || typeof act !== 'object') continue;
+      report.indexedSlots.push({ id: vm._nextIndexedId++, value: act });
+    }
+
+    const focused = Links && Links.focusKey ? Outliners.windows.get(Links.focusKey) : null;
+    const pos = focused ? { x: parseFloat(focused.root.style.left) + 36, y: parseFloat(focused.root.style.top) + 36 } : null;
+    Outliners.open(report, pos);
+  } catch {
+    // ignore secondary failures
+  }
+}
+
+
 
   function showHelp() {
     const md = `# Selfie — Help
@@ -3397,6 +3446,7 @@ remove(srcId, slotName) {
 
       // Used by link-layer masking to detect whether a link originates/ends on the focused outliner.
       this.root.dataset.winKey = this.key;
+      this.root.dataset.kind = (this.value && this.value.kind) ? this.value.kind : '';
 
       const { x, y } = this._defaultPos(pos);
       this.root.style.left = `${x}px`;
@@ -3542,6 +3592,7 @@ remove(srcId, slotName) {
           Outliners.open(cloned, { x: parseFloat(this.root.style.left) + 24, y: parseFloat(this.root.style.top) + 24 });
         } catch (e) {
           toast(e instanceof Error ? e.message : String(e), 'error');
+          if (e instanceof VMError) openErrorReport(e);
         }
       });
 
@@ -3880,6 +3931,7 @@ remove(srcId, slotName) {
           } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             toast(`Eval error: ${msg}`, 'error');
+          if (e instanceof VMError) openErrorReport(e);
           }
         });
         wrap.appendChild(ta);
@@ -3904,6 +3956,7 @@ remove(srcId, slotName) {
           } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             toast(`Eval error: ${msg}`, 'error');
+          if (e instanceof VMError) openErrorReport(e);
           }
         });
         wrap.appendChild(ta);
@@ -4200,6 +4253,7 @@ _renderSlotRow(holderObj, slot) {
             Outliners.open(openVal, { x: parseFloat(this.root.style.left) + 24, y: parseFloat(this.root.style.top) + 52 });
           } catch (e) {
             toast(e instanceof Error ? e.message : String(e), 'error');
+          if (e instanceof VMError) openErrorReport(e);
           }
         });
         actions.appendChild(btnExec);
@@ -4319,6 +4373,7 @@ _renderSlotRow(holderObj, slot) {
       toast(`Retargeted ${srcObj.label || '#' + srcObj.id}.${slotName} -> ${safeDescribe(targetObj)}`);
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), 'error');
+          if (e instanceof VMError) openErrorReport(e);
     }
   }
 
@@ -4395,6 +4450,7 @@ $('#btnToggleLines').addEventListener('click', (ev) => {
         SelfImage.downloadImage(image, `snapshot-${stamp}.selfieImage`);
       } catch (e) {
         toast(e instanceof Error ? e.message : String(e), 'error');
+          if (e instanceof VMError) openErrorReport(e);
       }
     });
   }
@@ -4501,6 +4557,7 @@ $('#btnToggleLines').addEventListener('click', (ev) => {
         toast('Image loaded.', 'ok');
       } catch (e) {
         toast(e instanceof Error ? e.message : String(e), 'error');
+          if (e instanceof VMError) openErrorReport(e);
       }
     };
     reader.onerror = () => toast('Failed to read image file.', 'error');
