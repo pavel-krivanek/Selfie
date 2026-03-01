@@ -809,7 +809,7 @@ html, body {
   <script id="selfie-image" type="application/json"></script>
 
   <!-- Selfie files (scripts) -->
-  <script type="application/x-selfie-script" data-selfie-file="true" data-name="self_object_model_demo.js">
+  <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_object_model.js">
 (function (global) {
   'use strict';
 
@@ -1737,11 +1737,11 @@ this.addSlot(traitsBlock, 'value:With:With:With:', makePrimitiveWrapperMethod('v
   }
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
-  <script type="application/x-selfie-script" data-selfie-file="true" data-name="self_examples.js">
+  <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_examples.js">
 (function(global){
   'use strict';
   if (!global.SelfObjectModelDemo || !global.SelfObjectModelDemo.SelfLikeVM) {
-    throw new Error('Missing SelfObjectModelDemo.SelfLikeVM. Load self_object_model_demo.js first.');
+    throw new Error('Missing SelfObjectModelDemo.SelfLikeVM. Load selfie_object_model.js first.');
   }
 
   function assert(condition, message) {
@@ -1963,7 +1963,7 @@ this.addSlot(traitsBlock, 'value:With:With:With:', makePrimitiveWrapperMethod('v
 
   
 </script>
-  <script type="application/x-selfie-script" data-selfie-file="true" data-name="self_scan.js">
+  <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_scan.js">
 (function(global){
   'use strict';
 
@@ -2086,11 +2086,11 @@ function scan(src) {
 })(typeof window !== 'undefined' ? window : globalThis);
 
   </script>
-  <script type="application/x-selfie-script" data-selfie-file="true" data-name="self_parse.js">
+  <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_parse.js">
 (function(global){
   'use strict';
   if (!global.SelfScan || typeof global.SelfScan.scan !== 'function') {
-    throw new Error('Missing SelfScan.scan. Load self_scan.js first.');
+    throw new Error('Missing SelfScan.scan. Load selfie_scan.js first.');
   }
 
 class ParseError extends Error {
@@ -2307,11 +2307,11 @@ function parseHeader(headerText) {
 })(typeof window !== 'undefined' ? window : globalThis);
 
   </script>
-  <script type="application/x-selfie-script" data-selfie-file="true" data-name="self_compile.js">
+  <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_compile.js">
 (function(global){
   'use strict';
   if (!global.SelfScan || !global.SelfParse) {
-    throw new Error('Missing SelfScan/SelfParse. Load self_scan.js and self_parse.js first.');
+    throw new Error('Missing SelfScan/SelfParse. Load selfie_scan.js and selfie_parse.js first.');
   }
 
 function blockValueSelectorForArity(n) {
@@ -2497,7 +2497,7 @@ function blockValueSelectorForArity(n) {
 
   
 </script>
-  <script type="application/x-selfie-script" data-selfie-file="true" data-name="self_lang.js">
+  <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_lang.js">
 (function(global){
   'use strict';
   if (!global.SelfScan || !global.SelfParse || !global.SelfCompile) {
@@ -2514,7 +2514,7 @@ function blockValueSelectorForArity(n) {
 })(typeof window !== 'undefined' ? window : globalThis);
 
   </script>
-  <script type="application/x-selfie-script" data-selfie-file="true" data-name="self_image.js">
+  <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_image.js">
 (function(global){
   'use strict';
 
@@ -2765,7 +2765,7 @@ function blockValueSelectorForArity(n) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = filename || 'snapshot.selfImage';
+    a.download = filename || 'snapshot.selfieImage';
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -2805,13 +2805,13 @@ function blockValueSelectorForArity(n) {
   'use strict';
 
   if (!window.SelfObjectModelDemo) {
-    alert('Missing SelfObjectModelDemo. Ensure self_object_model_demo.js is loaded first.');
+    alert('Missing SelfObjectModelDemo. Ensure selfie_object_model.js is loaded first.');
     return;
   }
 
   const { SelfLikeVM, VMError } = window.SelfObjectModelDemo;
   if (!window.SelfObjectModelExamples || typeof window.SelfObjectModelExamples.buildExamples !== 'function') {
-    throw new Error('Missing SelfObjectModelExamples.buildExamples. Ensure self_examples.js is loaded.');
+    throw new Error('Missing SelfObjectModelExamples.buildExamples. Ensure selfie_examples.js is loaded.');
   }
 
   const vm = new SelfLikeVM();
@@ -2973,11 +2973,11 @@ function blockValueSelectorForArity(n) {
 
   // ---------------------------------------------------------------------------
   // Language frontend (scanner + parser + compiler)
-  // Implemented in standalone self_lang.js (global: SelfLang).
+  // Implemented in standalone selfie_lang.js (global: SelfLang).
   // ---------------------------------------------------------------------------
 
   if (!globalThis.SelfLang) {
-    throw new Error('Missing SelfLang. Ensure self_lang.js is loaded before outliner.js');
+    throw new Error('Missing SelfLang. Ensure selfie_lang.js is loaded before outliner.js');
   }
 
   function compileSourceToMethodSpec(source, { isMethod, headerText } = {}) {
@@ -4380,7 +4380,7 @@ $('#btnToggleLines').addEventListener('click', (ev) => {
     ev.currentTarget.textContent = Links.hiddenAll ? 'Show lines' : 'Hide lines';
   });
 
-  // Save/load .selfImage
+  // Save/load .selfieImage
   const btnSaveImage = $('#btnSaveImage');
   if (btnSaveImage && window.SelfImage) {
     btnSaveImage.addEventListener('click', () => {
@@ -4392,7 +4392,7 @@ $('#btnToggleLines').addEventListener('click', (ev) => {
           ui: SelfImage.captureUi(Outliners, Links)
         };
         const stamp = image.createdAt.replace(/[:.]/g, '-');
-        SelfImage.downloadImage(image, `snapshot-${stamp}.selfImage`);
+        SelfImage.downloadImage(image, `snapshot-${stamp}.selfieImage`);
       } catch (e) {
         toast(e instanceof Error ? e.message : String(e), 'error');
       }
@@ -4507,7 +4507,7 @@ $('#btnToggleLines').addEventListener('click', (ev) => {
     reader.readAsText(file);
   };
 
-  // Drag & drop .selfImage on the page to restore.
+  // Drag & drop .selfieImage on the page to restore.
   document.addEventListener('dragover', (ev) => {
     const dt = ev.dataTransfer;
     if (!dt) return;
@@ -4518,7 +4518,7 @@ $('#btnToggleLines').addEventListener('click', (ev) => {
     const dt = ev.dataTransfer;
     if (!dt || !dt.files || dt.files.length === 0) return;
     const f = dt.files[0];
-    if (!f || !/\.selfImage$/i.test(f.name || '')) return;
+    if (!f || !/\.selfieImage$/i.test(f.name || '')) return;
     ev.preventDefault();
     if (!window.SelfImage) {
       toast('SelfImage module missing.', 'error');
