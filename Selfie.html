@@ -814,6 +814,8 @@ html, body {
         currentActivation: null,
         activationStack: []
       };
+      this.nil = this.newObject('nil');
+      this.nil.kind = 'nil';
       this.lobby = this._bootstrapLobby();
     }
 
@@ -833,6 +835,25 @@ html, body {
       const traitsPrototype = this.newObject('traits.prototype');
 
       this.addSlot(traits, 'object', traitsObject);
+
+      // Global nil (Self-style): reachable via delegation through traits.object and also present in globals.
+      this.addSlot(traitsObject, 'nil', this.nil);
+      this.addSlot(globals, 'nil', this.nil);
+      // Give nil a parent so it behaves like a normal object.
+      this.addSlot(this.nil, 'parent', traitsObject, { isParent: true });
+
+      // nil printString -> 'nil'
+      const _nilStr = this.newObject('String(nil)');
+      _nilStr.kind = 'string';
+      _nilStr.jsValue = 'nil';
+      const _nilPrint = this.newMethodTemplate({
+        label: 'nil.printString',
+        selectorHint: 'printString',
+        argNames: [],
+        bytecode: 'pushSelf\nsend literal1\nreturnTop',
+        literals: [{ kind: 'constant', slotName: 'literal1', value: _nilStr }]
+      });
+      this.addSlot(this.nil, 'printString', _nilPrint);
       this.addSlot(traits, 'block', traitsBlock);
       this.addSlot(traits, 'number', traitsNumber);
       this.addSlot(traits, 'prototype', traitsPrototype);
@@ -863,12 +884,13 @@ const makePrimitiveMethod = (selectorName, argNames) => {
 
 // Primitives are expressed as normal methods whose bodies use primitiveSend.
 this.addSlot(traitsObject, 'clone', makePrimitiveMethod('clone', []));
+this.addSlot(traitsObject, '==', makePrimitiveMethod('==', ['arg']));
+this.addSlot(traitsObject, 'setSlot:To:', makePrimitiveMethod('setSlot:To:', ['name', 'value']));
 
 this.addSlot(traitsNumber, '+', makePrimitiveMethod('+', ['arg']));
 this.addSlot(traitsNumber, '-', makePrimitiveMethod('-', ['arg']));
 this.addSlot(traitsNumber, '*', makePrimitiveMethod('*', ['arg']));
 this.addSlot(traitsNumber, '/', makePrimitiveMethod('/', ['arg']));
-this.addSlot(traitsNumber, '==', makePrimitiveMethod('==', ['arg']));
 this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', []));
 
       return lobby;
@@ -1028,6 +1050,7 @@ this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', [])
       const cfg = Object.assign({
         label: null,
         argNames: [],
+        source: '',
         bytecode: '',
         literals: [],
         activationParentSlotName: 'self',
@@ -1038,6 +1061,7 @@ this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', [])
       const method = this.newObject(cfg.label || 'method');
       method.kind = 'methodTemplate';
       method.selectorHint = cfg.selectorHint || null;
+      method.source = String(cfg.source || '');
       method.bytecode = String(cfg.bytecode || '');
       method.instructions = this.compileBytecode(method.bytecode);
       method.argNames = cfg.argNames.slice();
@@ -1045,10 +1069,10 @@ this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', [])
       method.activationParentIsSelf = !!cfg.activationParentIsSelf;
 
       // Parent slot of the future activation object.
-      this.addSlot(method, cfg.activationParentSlotName, null, { isParent: true, isArgument: true });
+      this.addSlot(method, cfg.activationParentSlotName, this.nil, { isParent: true, isArgument: true });
 
       for (const argName of cfg.argNames) {
-        this.addSlot(method, argName, null, { isArgument: true });
+        this.addSlot(method, argName, this.nil, { isArgument: true });
       }
 
       cfg.literals.forEach((lit, index) => {
@@ -1069,6 +1093,7 @@ this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', [])
         label: null,
         valueSelector: 'value',
         argNames: [],
+        source: '',
         bytecode: '',
         literals: []
       }, spec || {});
@@ -1076,6 +1101,7 @@ this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', [])
       const blockMethod = this.newMethodTemplate({
         label: `${cfg.label || 'block'}::method`,
         argNames: cfg.argNames,
+        source: cfg.source,
         bytecode: cfg.bytecode,
         literals: cfg.literals,
         activationParentSlotName: '(parent)',
@@ -1159,6 +1185,22 @@ this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', [])
     }
 
     _tryPrimitiveSend(receiver, selectorName, args) {
+      // identity primitive
+      if (selectorName === '==' && args.length === 1) {
+        return { handled: true, value: receiver === args[0] };
+      }
+
+      // reflective slot update: setSlot:To: (nameSymbol, value)
+      if (selectorName === 'setSlot:To:' && args.length === 2 && receiver && receiver.slots) {
+        const name = (args[0] && typeof args[0] === 'object' && args[0].kind === 'symbol') ? args[0].name : String(args[0]);
+        if (!name) return { handled: true, value: args[1] };
+        if (!receiver.slots[name]) {
+          receiver.slots[name] = { name, value: args[1], isParent: false, isArgument: false, isLiteral: false, literalKind: null };
+        } else {
+          receiver.slots[name].value = args[1];
+        }
+        return { handled: true, value: args[1] };
+      }
       // clone primitive for regular objects and blocks/numbers.
       if (selectorName === 'clone' && args.length === 0 && receiver && receiver.kind && receiver.slots) {
         const cloned = this.cloneObjectShallow(receiver, `${receiver.label || 'object'}::clone`);
@@ -1187,7 +1229,6 @@ this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', [])
             case '-': return { handled: true, value: this.makeNumber(a - b) };
             case '*': return { handled: true, value: this.makeNumber(a * b) };
             case '/': return { handled: true, value: this.makeNumber(a / b) };
-            case '==': return { handled: true, value: this.makeNumber(a === b ? 1 : 0) };
             default: break;
           }
         }
@@ -1614,6 +1655,7 @@ this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', [])
       label: 'mul:',
       selectorHint: 'mul:',
       argNames: ['arg'],
+      source: `^ arg * a`,
       bytecode: `
         pushSelf
         send arg
@@ -1637,6 +1679,7 @@ this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', [])
       label: 'doSomething.literal1',
       valueSelector: 'value',
       argNames: [],
+      source: `x + y`,
       bytecode: `
         pushSelf
         send x
@@ -1654,6 +1697,7 @@ this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', [])
       literals: [
         { kind: 'block', slotName: 'literal1', value: blockLiteral1 }
       ],
+      source: `^ [ x + y ] value`,
       bytecode: `
         pushSelf
         send literal1
@@ -1678,6 +1722,7 @@ this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', [])
       literals: [
         { kind: 'constant', slotName: 'literal3', value: vm.makeNumber(1) }
       ],
+      source: `arg + 1`,
       bytecode: `
         pushSelf
         send arg
@@ -1695,6 +1740,7 @@ this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', [])
       literals: [
         { kind: 'block', slotName: 'literal2', value: innerBlockLiteral }
       ],
+      source: `x + ([:arg | arg + 1] value: y)`,
       bytecode: `
         pushSelf
         send x
@@ -1715,6 +1761,7 @@ this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', [])
       literals: [
         { kind: 'block', slotName: 'literal1', value: outerBlockLiteral }
       ],
+      source: `^ [ x + ([:arg | arg + 1] value: y) ] value`,
       bytecode: `
         pushSelf
         send literal1
@@ -1793,7 +1840,8 @@ this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', [])
   global.SelfObjectModelExamples = { buildExamples, runPrebuiltExamples };
 })(typeof window !== 'undefined' ? window : globalThis);
 
-  </script>
+  
+</script>
   <script type="application/x-selfie-script" data-selfie-file="true" data-name="self_scan.js">
 (function(global){
   'use strict';
@@ -2096,7 +2144,7 @@ function parseHeader(headerText) {
     const text = String(headerText || '').trim();
     if (!text) throw new ParseError('Empty method header');
 
-    const toks = scan(text);
+    const toks = global.SelfScan.scan(text);
     const p = new Parser(toks);
 
     // binary: + arg
@@ -2245,7 +2293,8 @@ function blockValueSelectorForArity(n) {
         case 'BinarySend': {
           this.compileExpr(node.arg);
           this.compileExpr(node.recv);
-          this.emit(`send ${node.op} 1`);
+          const op = node.op;
+          this.emit(`send ${op} 1`);
           return;
         }
         case 'KeywordSend': {
@@ -2325,7 +2374,8 @@ function blockValueSelectorForArity(n) {
   global.SelfCompile = { Compiler, compileSourceToMethodSpec };
 })(typeof window !== 'undefined' ? window : globalThis);
 
-  </script>
+  
+</script>
   <script type="application/x-selfie-script" data-selfie-file="true" data-name="self_lang.js">
 (function(global){
   'use strict';
@@ -2499,6 +2549,7 @@ function blockValueSelectorForArity(n) {
       currentActivation: null,
       activationStack: []
     };
+    vm._systemContext = systemContext;
     if (vmData.systemContext && Array.isArray(vmData.systemContext.symbolTable)) {
       for (const [name, symName] of vmData.systemContext.symbolTable) {
         systemContext.symbolTable.set(String(name), { kind: 'symbol', name: String(symName || name) });
@@ -2508,6 +2559,13 @@ function blockValueSelectorForArity(n) {
     const lobby = vmData.lobbyId != null ? idToObj.get(vmData.lobbyId) : null;
     if (!lobby) throw new Error('Invalid image: lobbyId missing or not found.');
     vm.lobby = lobby;
+
+    // Reconnect VM convenience refs after materialization
+    try {
+      const traits = vm.getSlotValue(lobby, 'traits');
+      const traitsObject = vm.getSlotValue(traits, 'object');
+      vm.nil = vm.getSlotValue(traitsObject, 'nil') || vm.getSlotValue(vm.getSlotValue(lobby,'globals'),'nil');
+    } catch { /* ignore */ }
     // Ensure lobby has systemContext slot right away so vm.intern works during decoding.
     if (!vm.hasSlot(vm.lobby, 'systemContext')) {
       vm.addSlot(vm.lobby, 'systemContext', systemContext);
@@ -2602,7 +2660,8 @@ function blockValueSelectorForArity(n) {
   };
 })(typeof window !== 'undefined' ? window : globalThis);
 
-  </script>
+  
+</script>
   <script type="application/x-selfie-script" data-selfie-file="true" data-name="outliner.js">
 /* Self-like Outliners UI + tiny Self/Smalltalk-ish compiler
  * - Floating, resizable, focusable outliners
@@ -2746,8 +2805,9 @@ function blockValueSelectorForArity(n) {
 
   function parseValueText(text) {
     const raw = String(text ?? '').trim();
-    if (raw === '') return { ok: true, value: null };
-    if (raw === 'null') return { ok: true, value: null };
+    if (raw === '') return { ok: true, value: vm.nil };
+    if (raw === 'null') return { ok: true, value: vm.nil };
+    if (raw === 'nil') return { ok: true, value: vm.nil };
     if (raw === 'undefined') return { ok: true, value: undefined };
 
     if (raw.startsWith('#') && raw.length > 1 && !/^#\d+$/.test(raw)) {
@@ -3223,7 +3283,7 @@ function blockValueSelectorForArity(n) {
           const sn = slotName.trim();
           if (!sn) return;
           if (vm.hasSlot(v, sn)) { toast(`Slot '${sn}' already exists.`, 'error'); return; }
-          vm.addSlot(v, sn, null);
+          vm.addSlot(v, sn, vm.nil);
           this.render();
         });
 
@@ -4000,7 +4060,8 @@ $('#btnToggleLines').addEventListener('click', (ev) => {
 
 })();
 
-  </script>
+  
+</script>
   <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_save.js">
 (function(global){
   'use strict';
