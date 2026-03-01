@@ -1268,111 +1268,13 @@ this.addSlot(traitsBlock, 'value:With:With:With:', makePrimitiveWrapperMethod('v
       return slotValue;
     }
 
-    _tryPrimitiveSend(receiver, selectorName, args) {
-      // identity primitive
-      if (selectorName === '==' && args.length === 1) {
-        return { handled: true, value: receiver === args[0] };
-      }
-
-      // block evaluation primitive (invoked via traits.block value/value:... methods using primitiveSend)
-      if (selectorName === 'blockValue' && receiver && typeof receiver === 'object' && receiver.kind === 'blockInstance') {
-        const tmpl = receiver.blockLiteralTemplate;
-        if (!tmpl || !tmpl.blockMethod) {
-          throw new VMError('Malformed block instance: missing block method.');
-        }
-        const result = this.invokeMethod(tmpl.blockMethod, receiver, args, {
-          selectorName: tmpl.valueSelector || 'value',
-          holder: tmpl.blockObjectTemplate || null
-        });
-        return { handled: true, value: result };
-      }
-
-      
-
-      // Indexed slots primitives (1-based indexing).
-      // Representation: receiver.indexedSlots = [{id:number, value:any}, ...]
-      if (selectorName === 'indexedAdd' && args.length === 1 && receiver && receiver.slots) {
-        const n = Math.floor(this.unwrapNumber(args[0]));
-        if (!Number.isFinite(n) || n < 0) throw new VMError('indexedAdd expects a non-negative integer.');
-        if (!Array.isArray(receiver.indexedSlots)) receiver.indexedSlots = [];
-        for (let i = 0; i < n; i++) {
-          receiver.indexedSlots.push({ id: this._nextIndexedId++, value: this.nil ?? null });
-        }
-        return { handled: true, value: receiver };
-      }
-
-      if (selectorName === 'indexedDeleteRange' && args.length === 2 && receiver && receiver.slots) {
-        const from = Math.floor(this.unwrapNumber(args[0]));
-        const to = Math.floor(this.unwrapNumber(args[1]));
-        if (!Array.isArray(receiver.indexedSlots)) receiver.indexedSlots = [];
-        const len = receiver.indexedSlots.length;
-        if (from < 1 || to < 1 || from > to) throw new VMError('indexedDeleteRange expects from<=to, 1-based.');
-        if (from > len) return { handled: true, value: receiver };
-        const end = Math.min(to, len);
-        receiver.indexedSlots.splice(from - 1, end - (from - 1));
-        return { handled: true, value: receiver };
-      }
-
-      if (selectorName === 'indexedAt' && args.length === 1 && receiver && receiver.slots) {
-        const idx = Math.floor(this.unwrapNumber(args[0]));
-        if (!Array.isArray(receiver.indexedSlots)) receiver.indexedSlots = [];
-        if (idx < 1 || idx > receiver.indexedSlots.length) return { handled: true, value: this.nil ?? null };
-        return { handled: true, value: receiver.indexedSlots[idx - 1].value };
-      }
-
-      if (selectorName === 'indexedAtPut' && args.length === 2 && receiver && receiver.slots) {
-        const idx = Math.floor(this.unwrapNumber(args[0]));
-        if (!Array.isArray(receiver.indexedSlots)) receiver.indexedSlots = [];
-        if (idx < 1 || idx > receiver.indexedSlots.length) throw new VMError('indexedAt:Put: index out of range.');
-        receiver.indexedSlots[idx - 1].value = args[1];
-        return { handled: true, value: args[1] };
-      }
-// reflective slot update: setSlot:To: (nameSymbol, value)
-      if (selectorName === 'setSlot:To:' && args.length === 2 && receiver && receiver.slots) {
-        const name = (args[0] && typeof args[0] === 'object' && args[0].kind === 'symbol') ? args[0].name : String(args[0]);
-        if (!name) return { handled: true, value: args[1] };
-        if (!receiver.slots[name]) {
-          receiver.slots[name] = { name, value: args[1], isParent: false, isArgument: false, isLiteral: false, literalKind: null };
-        } else {
-          receiver.slots[name].value = args[1];
-        }
-        return { handled: true, value: args[1] };
-      }
-      // clone primitive for regular objects and blocks/numbers.
-      if (selectorName === 'clone' && args.length === 0 && receiver && receiver.kind && receiver.slots) {
-        const cloned = this.cloneObjectShallow(receiver, `${receiver.label || 'object'}::clone`);
-        if (receiver.kind === 'blockInstance') {
-          cloned.kind = 'blockInstance';
-          cloned.blockLiteralTemplate = receiver.blockLiteralTemplate;
-          cloned._lexicalParent = receiver._lexicalParent;
-        }
-        return { handled: true, value: cloned };
-      }
-
-      if (this.isNumberObject(receiver)) {
-        const a = receiver.jsValue;
-        const unary = args.length === 0;
-        const binary = args.length === 1;
-        if (selectorName === 'printString' && unary) {
-          const strObj = this.newObject(`String(${a})`);
-          strObj.kind = 'string';
-          strObj.jsValue = String(a);
-          return { handled: true, value: strObj };
-        }
-        if (binary) {
-          const b = this.unwrapNumber(args[0]);
-          switch (selectorName) {
-            case '+': return { handled: true, value: this.makeNumber(a + b) };
-            case '-': return { handled: true, value: this.makeNumber(a - b) };
-            case '*': return { handled: true, value: this.makeNumber(a * b) };
-            case '/': return { handled: true, value: this.makeNumber(a / b) };
-            default: break;
-          }
-        }
-      }
-
-      return { handled: false, value: null };
-    }
+_tryPrimitiveSend(receiver, selectorName, args) {
+  const prim = global.SelfiePrimitives;
+  if (prim && typeof prim.tryPrimitiveSend === 'function') {
+    return prim.tryPrimitiveSend(this, receiver, selectorName, args);
+  }
+  return { handled: false, value: null };
+}
 
     invokeMethod(methodTemplate, messageReceiver, args, meta) {
       const activation = this.cloneObjectShallow(methodTemplate, `${methodTemplate.label || 'method'}::activation`);
@@ -1764,6 +1666,123 @@ this.addSlot(traitsBlock, 'value:With:With:With:', makePrimitiveWrapperMethod('v
   }
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
+<script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_primitives.js">
+(function (global) {
+  'use strict';
+
+  const { VMError } = global.SelfObjectModelDemo;
+
+  global.SelfiePrimitives = {
+    tryPrimitiveSend(vm, receiver, selectorName, args) {
+      // identity primitive
+      if (selectorName === '==' && args.length === 1) {
+        return { handled: true, value: receiver === args[0] };
+      }
+
+      // block evaluation primitive (invoked via traits.block value/value:... methods using primitiveSend)
+      if (selectorName === 'blockValue' && receiver && typeof receiver === 'object' && receiver.kind === 'blockInstance') {
+        const tmpl = receiver.blockLiteralTemplate;
+        if (!tmpl || !tmpl.blockMethod) {
+          throw new VMError('Malformed block instance: missing block method.');
+        }
+        const result = vm.invokeMethod(tmpl.blockMethod, receiver, args, {
+          selectorName: tmpl.valueSelector || 'value',
+          holder: tmpl.blockObjectTemplate || null
+        });
+        return { handled: true, value: result };
+      }
+
+      
+
+      // Indexed slots primitives (1-based indexing).
+      // Representation: receiver.indexedSlots = [{id:number, value:any}, ...]
+      if (selectorName === 'indexedAdd' && args.length === 1 && receiver && receiver.slots) {
+        const n = Math.floor(vm.unwrapNumber(args[0]));
+        if (!Number.isFinite(n) || n < 0) throw new VMError('indexedAdd expects a non-negative integer.');
+        if (!Array.isArray(receiver.indexedSlots)) receiver.indexedSlots = [];
+        for (let i = 0; i < n; i++) {
+          receiver.indexedSlots.push({ id: vm._nextIndexedId++, value: vm.nil ?? null });
+        }
+        return { handled: true, value: receiver };
+      }
+
+      if (selectorName === 'indexedDeleteRange' && args.length === 2 && receiver && receiver.slots) {
+        const from = Math.floor(vm.unwrapNumber(args[0]));
+        const to = Math.floor(vm.unwrapNumber(args[1]));
+        if (!Array.isArray(receiver.indexedSlots)) receiver.indexedSlots = [];
+        const len = receiver.indexedSlots.length;
+        if (from < 1 || to < 1 || from > to) throw new VMError('indexedDeleteRange expects from<=to, 1-based.');
+        if (from > len) return { handled: true, value: receiver };
+        const end = Math.min(to, len);
+        receiver.indexedSlots.splice(from - 1, end - (from - 1));
+        return { handled: true, value: receiver };
+      }
+
+      if (selectorName === 'indexedAt' && args.length === 1 && receiver && receiver.slots) {
+        const idx = Math.floor(vm.unwrapNumber(args[0]));
+        if (!Array.isArray(receiver.indexedSlots)) receiver.indexedSlots = [];
+        if (idx < 1 || idx > receiver.indexedSlots.length) return { handled: true, value: vm.nil ?? null };
+        return { handled: true, value: receiver.indexedSlots[idx - 1].value };
+      }
+
+      if (selectorName === 'indexedAtPut' && args.length === 2 && receiver && receiver.slots) {
+        const idx = Math.floor(vm.unwrapNumber(args[0]));
+        if (!Array.isArray(receiver.indexedSlots)) receiver.indexedSlots = [];
+        if (idx < 1 || idx > receiver.indexedSlots.length) throw new VMError('indexedAt:Put: index out of range.');
+        receiver.indexedSlots[idx - 1].value = args[1];
+        return { handled: true, value: args[1] };
+      }
+// reflective slot update: setSlot:To: (nameSymbol, value)
+      if (selectorName === 'setSlot:To:' && args.length === 2 && receiver && receiver.slots) {
+        const name = (args[0] && typeof args[0] === 'object' && args[0].kind === 'symbol') ? args[0].name : String(args[0]);
+        if (!name) return { handled: true, value: args[1] };
+        if (!receiver.slots[name]) {
+          receiver.slots[name] = { name, value: args[1], isParent: false, isArgument: false, isLiteral: false, literalKind: null };
+        } else {
+          receiver.slots[name].value = args[1];
+        }
+        return { handled: true, value: args[1] };
+      }
+      // clone primitive for regular objects and blocks/numbers.
+      if (selectorName === 'clone' && args.length === 0 && receiver && receiver.kind && receiver.slots) {
+        const cloned = vm.cloneObjectShallow(receiver, `${receiver.label || 'object'}::clone`);
+        if (receiver.kind === 'blockInstance') {
+          cloned.kind = 'blockInstance';
+          cloned.blockLiteralTemplate = receiver.blockLiteralTemplate;
+          cloned._lexicalParent = receiver._lexicalParent;
+        }
+        return { handled: true, value: cloned };
+      }
+
+      if (vm.isNumberObject(receiver)) {
+        const a = receiver.jsValue;
+        const unary = args.length === 0;
+        const binary = args.length === 1;
+        if (selectorName === 'printString' && unary) {
+          const strObj = vm.newObject(`String(${a})`);
+          strObj.kind = 'string';
+          strObj.jsValue = String(a);
+          return { handled: true, value: strObj };
+        }
+        if (binary) {
+          const b = vm.unwrapNumber(args[0]);
+          switch (selectorName) {
+            case '+': return { handled: true, value: vm.makeNumber(a + b) };
+            case '-': return { handled: true, value: vm.makeNumber(a - b) };
+            case '*': return { handled: true, value: vm.makeNumber(a * b) };
+            case '/': return { handled: true, value: vm.makeNumber(a / b) };
+            default: break;
+          }
+        }
+      }
+
+      return { handled: false, value: null };
+    }
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+
   <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_examples.js">
 (function(global){
   'use strict';
