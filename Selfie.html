@@ -867,16 +867,40 @@ html, body {
       
 const makePrimitiveMethod = (selectorName, argNames) => {
   const argc = argNames.length;
-  const parts = ['pushSelf', 'send self'];
+  const parts = [];
+  // primitiveSend expects: receiver on top, args below.
+  // So push args first, then push receiver (self) last.
   for (const a of argNames) {
     parts.push('pushSelf');
     parts.push(`send ${a}`);
   }
+  parts.push('pushSelf');
+  parts.push('send self');
   parts.push(`primitiveSend ${selectorName} ${argc}`);
   parts.push('returnTop');
   return this.newMethodTemplate({
     label: `primitive ${selectorName}`,
     selectorHint: selectorName,
+    argNames,
+    bytecode: parts.join('\n')
+  });
+};
+
+const makePrimitiveWrapperMethod = (methodSelector, primitiveSelector, argNames) => {
+  const argc = argNames.length;
+  const parts = [];
+  // primitiveSend expects: receiver on top, args below.
+  for (const a of argNames) {
+    parts.push('pushSelf');
+    parts.push(`send ${a}`);
+  }
+  parts.push('pushSelf');
+  parts.push('send self');
+  parts.push(`primitiveSend ${primitiveSelector} ${argc}`);
+  parts.push('returnTop');
+  return this.newMethodTemplate({
+    label: `primitive ${methodSelector}`,
+    selectorHint: methodSelector,
     argNames,
     bytecode: parts.join('\n')
   });
@@ -892,6 +916,14 @@ this.addSlot(traitsNumber, '-', makePrimitiveMethod('-', ['arg']));
 this.addSlot(traitsNumber, '*', makePrimitiveMethod('*', ['arg']));
 this.addSlot(traitsNumber, '/', makePrimitiveMethod('/', ['arg']));
 this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', []));
+
+// Block invocation is expressed as normal methods (no special send handling).
+this.addSlot(traitsBlock, 'value', makePrimitiveWrapperMethod('value', 'blockValue', []));
+this.addSlot(traitsBlock, 'value:', makePrimitiveWrapperMethod('value:', 'blockValue', ['arg']));
+this.addSlot(traitsBlock, 'value:With:', makePrimitiveWrapperMethod('value:With:', 'blockValue', ['arg1', 'arg2']));
+this.addSlot(traitsBlock, 'value:With:With:', makePrimitiveWrapperMethod('value:With:With:', 'blockValue', ['arg1', 'arg2', 'arg3']));
+this.addSlot(traitsBlock, 'value:With:With:With:', makePrimitiveWrapperMethod('value:With:With:With:', 'blockValue', ['arg1', 'arg2', 'arg3', 'arg4']));
+
 
       return lobby;
     }
@@ -1113,7 +1145,7 @@ this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', [])
       blockObjectTemplate.kind = 'blockTemplateObject';
       this.addSlot(blockObjectTemplate, 'parent', this.getSlotValue(this.getSlotValue(this.lobby, 'traits'), 'block'), { isParent: true });
       this.addSlot(blockObjectTemplate, '(lexicalParent)', null, { isLiteral: false });
-      this.addSlot(blockObjectTemplate, cfg.valueSelector, blockMethod);
+      // Note: block instances inherit value/value:... from traits.block; the block method is stored in the template.
 
       return {
         kind: 'blockLiteralTemplate',
@@ -1188,6 +1220,19 @@ this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', [])
       // identity primitive
       if (selectorName === '==' && args.length === 1) {
         return { handled: true, value: receiver === args[0] };
+      }
+
+      // block evaluation primitive (invoked via traits.block value/value:... methods using primitiveSend)
+      if (selectorName === 'blockValue' && receiver && typeof receiver === 'object' && receiver.kind === 'blockInstance') {
+        const tmpl = receiver.blockLiteralTemplate;
+        if (!tmpl || !tmpl.blockMethod) {
+          throw new VMError('Malformed block instance: missing block method.');
+        }
+        const result = this.invokeMethod(tmpl.blockMethod, receiver, args, {
+          selectorName: tmpl.valueSelector || 'value',
+          holder: tmpl.blockObjectTemplate || null
+        });
+        return { handled: true, value: result };
       }
 
       // reflective slot update: setSlot:To: (nameSymbol, value)
