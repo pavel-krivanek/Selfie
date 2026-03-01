@@ -3001,12 +3001,42 @@ function blockValueSelectorForArity(n) {
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const linkLayer = document.createElementNS(SVG_NS, 'svg');
   linkLayer.classList.add('linkLayer');
+
+  // SVG masking: hide lines under the focused outliner (except lines that start/end on it).
+  const defs = document.createElementNS(SVG_NS, 'defs');
+  const focusMask = document.createElementNS(SVG_NS, 'mask');
+  focusMask.id = 'focusMask';
+
+  const maskBg = document.createElementNS(SVG_NS, 'rect');
+  maskBg.setAttribute('x', '0');
+  maskBg.setAttribute('y', '0');
+  maskBg.setAttribute('fill', 'white');
+
+  const maskHole = document.createElementNS(SVG_NS, 'rect');
+  maskHole.setAttribute('x', '0');
+  maskHole.setAttribute('y', '0');
+  maskHole.setAttribute('width', '0');
+  maskHole.setAttribute('height', '0');
+  maskHole.setAttribute('fill', 'black');
+
+  focusMask.appendChild(maskBg);
+  focusMask.appendChild(maskHole);
+  defs.appendChild(focusMask);
+  linkLayer.appendChild(defs);
+
+  const maskedGroup = document.createElementNS(SVG_NS, 'g');
+  maskedGroup.setAttribute('mask', 'url(#focusMask)');
+  const plainGroup = document.createElementNS(SVG_NS, 'g');
+  linkLayer.appendChild(maskedGroup);
+  linkLayer.appendChild(plainGroup);
+
   workspace.appendChild(linkLayer);
 
   const Links = {
     entries: new Map(),
     hiddenAll: false,
     _raf: 0,
+    focusKey: null,
 
     key(srcId, slotName) { return `${srcId}:${slotName}`; },
 
@@ -3028,8 +3058,8 @@ _ensure(srcId, slotName) {
       Links.setVisible(srcId, slotName, false);
     });
 
-    linkLayer.appendChild(path);
-    linkLayer.appendChild(circle);
+    maskedGroup.appendChild(path);
+    maskedGroup.appendChild(circle);
 
     e = { srcId, slotName, fromEl: null, targetId: NaN, visible: false, path, circle };
     this.entries.set(k, e);
@@ -3079,6 +3109,11 @@ remove(srcId, slotName) {
       this.schedule();
     },
 
+    setFocus(winKey) {
+      this.focusKey = winKey || null;
+      this.schedule();
+    },
+
     schedule() {
       if (this._raf) return;
       this._raf = window.requestAnimationFrame(() => {
@@ -3100,6 +3135,37 @@ remove(srcId, slotName) {
     linkLayer.setAttribute('width', String(w));
     linkLayer.setAttribute('height', String(h));
     linkLayer.setAttribute('viewBox', `0 0 ${w} ${h}`);
+
+
+    // Update focus mask dimensions
+    maskBg.setAttribute('width', String(w));
+    maskBg.setAttribute('height', String(h));
+
+    let focusRect = null;
+    if (this.focusKey) {
+      const fw = Outliners.windows.get(this.focusKey);
+      if (fw && fw.root && fw.root.isConnected) {
+        const fr = fw.root.getBoundingClientRect();
+        focusRect = {
+          x: fr.left - wsRect.left,
+          y: fr.top - wsRect.top,
+          w: fr.width,
+          h: fr.height
+        };
+      }
+    }
+
+    if (focusRect) {
+      maskHole.setAttribute('x', String(focusRect.x));
+      maskHole.setAttribute('y', String(focusRect.y));
+      maskHole.setAttribute('width', String(focusRect.w));
+      maskHole.setAttribute('height', String(focusRect.h));
+    } else {
+      maskHole.setAttribute('x', '0');
+      maskHole.setAttribute('y', '0');
+      maskHole.setAttribute('width', '0');
+      maskHole.setAttribute('height', '0');
+    }
 
     const intersectRect = (p1, p2, rect) => {
       const dx = p2.x - p1.x;
@@ -3162,10 +3228,26 @@ remove(srcId, slotName) {
       const targetObj = Number.isFinite(e.targetId) ? findObjectById(e.targetId) : null;
       const targetWin = targetObj ? Outliners.windows.get(identityKey(targetObj)) : null;
 
+
+      // Decide whether to mask this connection under the focused outliner.
+      // Lines that start from OR end on the focused outliner are NOT masked.
+      const focusKey = this.focusKey;
+      let wantPlain = false;
+      if (focusKey && fromEl && fromEl.isConnected) {
+        const fromWinKey = (fromEl.closest && fromEl.closest('.outliner')) ? fromEl.closest('.outliner').dataset.winKey : null;
+        const targetWinKey = targetWin && targetWin.root ? targetWin.root.dataset.winKey : null;
+        wantPlain = (fromWinKey === focusKey) || (targetWinKey === focusKey);
+      }
+
       const canDraw = !this.hiddenAll
         && e.visible
         && fromEl && fromEl.isConnected
         && targetWin && targetWin.root && targetWin.root.isConnected;
+
+      // Move SVG elements into masked/unmasked group depending on focus.
+      const parentGroup = wantPlain ? plainGroup : maskedGroup;
+      if (e.path.parentNode !== parentGroup) parentGroup.appendChild(e.path);
+      if (e.circle && e.circle.parentNode !== parentGroup) parentGroup.appendChild(e.circle);
 
       if (!canDraw) {
         e.path.style.display = 'none';
@@ -3239,6 +3321,7 @@ remove(srcId, slotName) {
       this.windows.delete(key);
       if (win._resizeObs) try { win._resizeObs.disconnect(); } catch {}
       win.root.remove();
+      if (Links.focusKey === key) Links.setFocus(null);
       Links.schedule();
     }
   };
@@ -3312,6 +3395,9 @@ remove(srcId, slotName) {
 
       this.root = el('div', { class: 'outliner', tabindex: '0' });
 
+      // Used by link-layer masking to detect whether a link originates/ends on the focused outliner.
+      this.root.dataset.winKey = this.key;
+
       const { x, y } = this._defaultPos(pos);
       this.root.style.left = `${x}px`;
       this.root.style.top = `${y}px`;
@@ -3339,6 +3425,7 @@ remove(srcId, slotName) {
       Outliners.z += 1;
       this.root.style.zIndex = String(Outliners.z);
       this.root.focus({ preventScroll: true });
+      Links.setFocus(this.key);
     }
 
     flash() {
