@@ -55,6 +55,7 @@
   --stripe-literal: hsla(0, 80%, 50%, .35);
   --stripe-literalBlock: hsla(25, 90%, 45%, .35);
   --stripe-lexical: hsla(330, 80%, 50%, .35);
+  --stripe-indexed: hsla(160, 80%, 35%, .35);
 
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
@@ -89,6 +90,7 @@
     --stripe-literal: hsla(0, 80%, 65%, .45);
     --stripe-literalBlock: hsla(25, 90%, 60%, .45);
     --stripe-lexical: hsla(330, 80%, 65%, .45);
+    --stripe-indexed: hsla(160, 70%, 55%, .45);
   }
 }
 
@@ -120,6 +122,7 @@
   --stripe-literal: hsla(0, 80%, 50%, .35);
   --stripe-literalBlock: hsla(25, 90%, 45%, .35);
   --stripe-lexical: hsla(330, 80%, 50%, .35);
+  --stripe-indexed: hsla(160, 80%, 35%, .35);
 }
 
 :root[data-theme="dark"] {
@@ -150,6 +153,7 @@
   --stripe-literal: hsla(0, 80%, 65%, .45);
   --stripe-literalBlock: hsla(25, 90%, 60%, .45);
   --stripe-lexical: hsla(330, 80%, 65%, .45);
+    --stripe-indexed: hsla(160, 70%, 55%, .45);
 }
 
 * { box-sizing: border-box; }
@@ -359,6 +363,7 @@ html, body {
 .slotStripe[data-kind="literal"] { background: var(--stripe-literal); }
 .slotStripe[data-kind="literalBlock"] { background: var(--stripe-literalBlock); }
 .slotStripe[data-kind="lexical"] { background: var(--stripe-lexical); }
+.slotStripe[data-kind="indexed"] { background: var(--stripe-indexed); }
 
 
 .slotName {
@@ -807,6 +812,7 @@ html, body {
   class SelfLikeVM {
     constructor() {
       this._nextId = 1;
+      this._nextIndexedId = 1;
       this.objects = new Set();
       this._systemContext = {
         kind: 'systemContext',
@@ -909,6 +915,12 @@ const makePrimitiveWrapperMethod = (methodSelector, primitiveSelector, argNames)
 // Primitives are expressed as normal methods whose bodies use primitiveSend.
 this.addSlot(traitsObject, 'clone', makePrimitiveMethod('clone', []));
 this.addSlot(traitsObject, '==', makePrimitiveMethod('==', ['arg']));
+
+      // Indexed slots API (methods that call primitiveSend).
+      this.addSlot(traitsObject, 'addIndexedSlots:', makePrimitiveMethod('indexedAdd', ['count']));
+      this.addSlot(traitsObject, 'deleteIndexedSlotsFrom:To:', makePrimitiveMethod('indexedDeleteRange', ['from', 'to']));
+      this.addSlot(traitsObject, 'indexedAt:', makePrimitiveMethod('indexedAt', ['index']));
+      this.addSlot(traitsObject, 'indexedAt:Put:', makePrimitiveMethod('indexedAtPut', ['index', 'value']));
 this.addSlot(traitsObject, 'setSlot:To:', makePrimitiveMethod('setSlot:To:', ['name', 'value']));
 
 this.addSlot(traitsNumber, '+', makePrimitiveMethod('+', ['arg']));
@@ -945,7 +957,8 @@ this.addSlot(traitsBlock, 'value:With:With:With:', makePrimitiveWrapperMethod('v
         kind: 'object',
         id: this._nextId++,
         label: label || null,
-        slots: Object.create(null)
+        slots: Object.create(null),
+        indexedSlots: []
       };
       this.objects.add(obj);
       return obj;
@@ -1021,19 +1034,30 @@ this.addSlot(traitsBlock, 'value:With:With:With:', makePrimitiveWrapperMethod('v
     cloneObjectShallow(original, label) {
       const clone = this.newObject(label || (original.label ? `${original.label} (clone)` : null));
       clone.kind = original.kind;
-      if (original.kind === 'number') {
-        clone.kind = 'number';
+
+      // Copy scalar payloads
+      if (Object.prototype.hasOwnProperty.call(original, 'jsValue')) {
         clone.jsValue = original.jsValue;
       }
-      for (const slotName of Object.keys(original.slots)) {
-        const s = original.slots[slotName];
-        this.addSlot(clone, slotName, s.value, {
-          isParent: s.isParent,
-          isArgument: s.isArgument,
-          isLiteral: s.isLiteral,
-          literalKind: s.literalKind
-        });
+
+      // Copy normal slots (shallow)
+      clone.slots = Object.create(null);
+      const srcSlots = original && original.slots ? original.slots : null;
+      if (srcSlots) {
+        for (const name of Object.keys(srcSlots)) {
+          // Preserve any extended slot metadata by copying the record
+          clone.slots[name] = Object.assign({}, srcSlots[name]);
+        }
       }
+
+      // Indexed slots (ignored by lookup, ordered). New ids to keep uniqueness.
+      clone.indexedSlots = [];
+      if (Array.isArray(original && original.indexedSlots)) {
+        for (const e of original.indexedSlots) {
+          clone.indexedSlots.push({ id: this._nextIndexedId++, value: e.value });
+        }
+      }
+
       return clone;
     }
 
@@ -1235,7 +1259,47 @@ this.addSlot(traitsBlock, 'value:With:With:With:', makePrimitiveWrapperMethod('v
         return { handled: true, value: result };
       }
 
-      // reflective slot update: setSlot:To: (nameSymbol, value)
+      
+
+      // Indexed slots primitives (1-based indexing).
+      // Representation: receiver.indexedSlots = [{id:number, value:any}, ...]
+      if (selectorName === 'indexedAdd' && args.length === 1 && receiver && receiver.slots) {
+        const n = Math.floor(this.unwrapNumber(args[0]));
+        if (!Number.isFinite(n) || n < 0) throw new VMError('indexedAdd expects a non-negative integer.');
+        if (!Array.isArray(receiver.indexedSlots)) receiver.indexedSlots = [];
+        for (let i = 0; i < n; i++) {
+          receiver.indexedSlots.push({ id: this._nextIndexedId++, value: this.nil ?? null });
+        }
+        return { handled: true, value: receiver };
+      }
+
+      if (selectorName === 'indexedDeleteRange' && args.length === 2 && receiver && receiver.slots) {
+        const from = Math.floor(this.unwrapNumber(args[0]));
+        const to = Math.floor(this.unwrapNumber(args[1]));
+        if (!Array.isArray(receiver.indexedSlots)) receiver.indexedSlots = [];
+        const len = receiver.indexedSlots.length;
+        if (from < 1 || to < 1 || from > to) throw new VMError('indexedDeleteRange expects from<=to, 1-based.');
+        if (from > len) return { handled: true, value: receiver };
+        const end = Math.min(to, len);
+        receiver.indexedSlots.splice(from - 1, end - (from - 1));
+        return { handled: true, value: receiver };
+      }
+
+      if (selectorName === 'indexedAt' && args.length === 1 && receiver && receiver.slots) {
+        const idx = Math.floor(this.unwrapNumber(args[0]));
+        if (!Array.isArray(receiver.indexedSlots)) receiver.indexedSlots = [];
+        if (idx < 1 || idx > receiver.indexedSlots.length) return { handled: true, value: this.nil ?? null };
+        return { handled: true, value: receiver.indexedSlots[idx - 1].value };
+      }
+
+      if (selectorName === 'indexedAtPut' && args.length === 2 && receiver && receiver.slots) {
+        const idx = Math.floor(this.unwrapNumber(args[0]));
+        if (!Array.isArray(receiver.indexedSlots)) receiver.indexedSlots = [];
+        if (idx < 1 || idx > receiver.indexedSlots.length) throw new VMError('indexedAt:Put: index out of range.');
+        receiver.indexedSlots[idx - 1].value = args[1];
+        return { handled: true, value: args[1] };
+      }
+// reflective slot update: setSlot:To: (nameSymbol, value)
       if (selectorName === 'setSlot:To:' && args.length === 2 && receiver && receiver.slots) {
         const name = (args[0] && typeof args[0] === 'object' && args[0].kind === 'symbol') ? args[0].name : String(args[0]);
         if (!name) return { handled: true, value: args[1] };
@@ -2508,6 +2572,7 @@ function blockValueSelectorForArity(n) {
   function serializeVm(vm) {
     const objects = [];
     let maxId = 0;
+    let maxIndexedId = 0;
     for (const obj of vm.objects) {
       if (!obj || typeof obj !== 'object') continue;
       if (obj.kind === 'activation') continue; // ephemeral
@@ -2524,7 +2589,8 @@ function blockValueSelectorForArity(n) {
         activationParentIsSelf: obj.kind === 'methodTemplate' ? !!obj.activationParentIsSelf : undefined,
         bytecode: obj.kind === 'methodTemplate' ? String(obj.bytecode || '') : undefined,
         source: obj.kind === 'methodTemplate' ? String(obj.source || '') : undefined,
-        slots: []
+        slots: [],
+        indexedSlots: (Array.isArray(obj.indexedSlots) ? obj.indexedSlots.map(e => { maxIndexedId = Math.max(maxIndexedId, e && e.id || 0); return { id: e.id, value: encodeValue(e.value) }; }) : [])
       };
 
       const slotNames = obj.slots ? Object.keys(obj.slots) : [];
@@ -2555,6 +2621,7 @@ function blockValueSelectorForArity(n) {
 
     return {
       nextId: Math.max(vm._nextId || 1, maxId + 1),
+      nextIndexedId: Math.max(vm._nextIndexedId || 1, maxIndexedId + 1),
       lobbyId: vm.lobby && typeof vm.lobby.id === 'number' ? vm.lobby.id : null,
       objects,
       systemContext: { symbolTable }
@@ -2571,7 +2638,8 @@ function blockValueSelectorForArity(n) {
         kind: rec.kind || 'object',
         id: rec.id,
         label: rec.label || null,
-        slots: Object.create(null)
+        slots: Object.create(null),
+        indexedSlots: []
       };
       if (obj.kind === 'number' || obj.kind === 'string') obj.jsValue = rec.jsValue;
       if (obj.kind === 'methodTemplate') {
@@ -2632,10 +2700,15 @@ function blockValueSelectorForArity(n) {
           isReadWrite: !!s.isReadWrite
         };
       }
+
+      // Indexed slots
+      obj.indexedSlots = Array.isArray(rec.indexedSlots) ? rec.indexedSlots.map(e => ({ id: e.id, value: decodeValue(vm, idToObj, e.value) })) : [];
     }
+
 
     const maxId = Math.max(0, ...Array.from(vm.objects).map(o => o.id || 0));
     vm._nextId = Math.max(vmData.nextId || 1, maxId + 1);
+    vm._nextIndexedId = Math.max(vmData.nextIndexedId || 1, ...Array.from(vm.objects).flatMap(o => (o.indexedSlots||[]).map(e=>e.id||0))) + 1;
     return { idToObj };
   }
 
@@ -2705,8 +2778,7 @@ function blockValueSelectorForArity(n) {
   };
 })(typeof window !== 'undefined' ? window : globalThis);
 
-  
-</script>
+  </script>
   <script type="application/x-selfie-script" data-selfie-file="true" data-name="outliner.js">
 /* Self-like Outliners UI + tiny Self/Smalltalk-ish compiler
  * - Floating, resizable, focusable outliners
@@ -3376,6 +3448,7 @@ function blockValueSelectorForArity(n) {
             toast(`Header error: ${msg}`, 'error');
           }
         });
+        const indexed = this._renderIndexedSection(v);
         const evaluator = this._renderEvaluator(v);
 
         const addBar = el('div', { class: 'addBar', style: { display: 'flex', gap: '6px', alignItems: 'center' } },
@@ -3388,6 +3461,7 @@ function blockValueSelectorForArity(n) {
         return el('div', {},
           el('div', { class: 'sectionTitle' }, el('span', {}, 'Slots'), addBar),
           list,
+          indexed,
           evaluator
         );
       }
@@ -3638,7 +3712,165 @@ function blockValueSelectorForArity(n) {
       return wrap;
     }
 
-    _renderSlotRow(holderObj, slot) {
+    
+
+    _renderIndexedSection(holderObj) {
+      const wrap = el('div', {});
+      const list = el('div', { class: 'slotList' });
+      const slots = Array.isArray(holderObj.indexedSlots) ? holderObj.indexedSlots : [];
+      for (let i = 0; i < slots.length; i++) {
+        list.appendChild(this._renderIndexedRow(holderObj, i, slots[i]));
+      }
+
+      const btnAdd = el('button', { class: 'smallBtn', title: 'Add indexed slots' }, '+');
+      btnAdd.addEventListener('click', () => {
+        const txt = prompt('Add how many indexed slots?', '1');
+        if (txt == null) return;
+        const n = Math.max(0, Math.floor(Number(txt)));
+        if (!Number.isFinite(n)) return;
+        vm._tryPrimitiveSend(holderObj, 'indexedAdd', [vm.makeNumber(n)]);
+        this.render();
+      });
+
+      const btnDel = el('button', { class: 'smallBtn danger', title: 'Delete indexed slot range' }, 'Del');
+      btnDel.addEventListener('click', () => {
+        const txt = prompt('Delete range (from,to) 1-based:', '');
+        if (txt == null) return;
+        const m = String(txt).split(/\s*,\s*/);
+        if (m.length < 2) return;
+        const from = Math.floor(Number(m[0]));
+        const to = Math.floor(Number(m[1]));
+        if (!Number.isFinite(from) || !Number.isFinite(to)) return;
+        const arr = Array.isArray(holderObj.indexedSlots) ? holderObj.indexedSlots : [];
+        const rem = arr.slice(Math.max(0, from - 1), Math.min(arr.length, to)).map(e => e && e.id);
+        for (const id of rem) {
+          if (id != null) Links.remove(holderObj.id, `idx:${id}`);
+        }
+        vm._tryPrimitiveSend(holderObj, 'indexedDeleteRange', [vm.makeNumber(from), vm.makeNumber(to)]);
+        this.render();
+      });
+
+      const title = el('div', { class: 'sectionTitle', style: { marginTop: '10px' } },
+        el('span', {}, 'Indexed'),
+        el('div', { style: { display: 'flex', gap: '6px' } }, btnAdd, btnDel)
+      );
+
+      wrap.append(title, list);
+      return wrap;
+    }
+
+    _renderIndexedRow(holderObj, index, entry) {
+      const displayIndex = index + 1;
+      const stableKey = entry && entry.id != null ? `idx:${entry.id}` : `idx:pos:${displayIndex}`;
+      const curValue = entry && typeof entry === 'object' && 'value' in entry ? entry.value : entry;
+
+      const row = el('div', { class: 'slotRow', dataset: { slotName: stableKey } });
+      const stripe = el('div', { class: 'slotStripe', dataset: { kind: 'indexed' }, title: 'indexed' });
+
+      row.dataset.controls = 'closed';
+      const toggleBtn = el('button', { class: 'slotToggle', title: 'Show/hide slot controls' }, '▾');
+      toggleBtn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const open = row.dataset.controls === 'open';
+        row.dataset.controls = open ? 'closed' : 'open';
+        toggleBtn.textContent = open ? '▾' : '▴';
+      });
+
+      const nameEl = el('div', { class: 'slotName', contenteditable: 'false' }, String(displayIndex));
+
+      const valueWrap = el('div', { class: 'slotValue' });
+      const valueChip = el('div', { class: 'slotValueChip', contenteditable: 'true', spellcheck: 'false' }, safeDescribe(curValue));
+
+      valueChip.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); valueChip.blur(); }
+      });
+
+      valueChip.addEventListener('blur', () => {
+        const parsed = parseValueText(valueChip.textContent);
+        if (!parsed.ok) { toast(parsed.error, 'error'); valueChip.textContent = safeDescribe(curValue); return; }
+        vm._tryPrimitiveSend(holderObj, 'indexedAtPut', [vm.makeNumber(displayIndex), parsed.value]);
+        if (entry && typeof entry === 'object' && 'value' in entry) entry.value = parsed.value;
+        valueChip.textContent = safeDescribe(parsed.value);
+        if (parsed.value && typeof parsed.value === 'object' && typeof parsed.value.id === 'number') Links.setTarget(holderObj.id, stableKey, parsed.value.id);
+        else Links.setTarget(holderObj.id, stableKey, NaN);
+        Links.schedule();
+      });
+
+      const wireDrop = (node) => {
+        node.addEventListener('dragover', (ev) => {
+          const dt = ev.dataTransfer;
+          if (dt.types.includes(DND.MIME_OBJ) || dt.types.includes(DND.MIME_SLOT_REF)) {
+            ev.preventDefault();
+            dt.dropEffect = 'link';
+            node.classList.add('dropTarget');
+          }
+        });
+        node.addEventListener('dragleave', () => node.classList.remove('dropTarget'));
+        node.addEventListener('drop', (ev) => {
+          const dt = ev.dataTransfer;
+          const obj = DND.getObject(dt.getData(DND.MIME_OBJ));
+          const slotRef = DND.getSlotRef(dt.getData(DND.MIME_SLOT_REF));
+          node.classList.remove('dropTarget');
+          if (obj) {
+            ev.preventDefault();
+            vm._tryPrimitiveSend(holderObj, 'indexedAtPut', [vm.makeNumber(displayIndex), obj]);
+            if (entry && typeof entry === 'object' && 'value' in entry) entry.value = obj;
+            valueChip.textContent = safeDescribe(obj);
+            Links.setTarget(holderObj.id, stableKey, obj.id);
+            Links.setVisible(holderObj.id, stableKey, true);
+            Links.schedule();
+            return;
+          }
+          if (slotRef) {
+            const target = (entry && typeof entry === 'object' && 'value' in entry) ? entry.value : curValue;
+            if (target && typeof target === 'object') {
+              ev.preventDefault();
+              retargetSlot(slotRef.srcObj, slotRef.slotName, target);
+            }
+          }
+        });
+      };
+      wireDrop(valueChip);
+
+      valueWrap.appendChild(valueChip);
+
+      const actions = el('div', { class: 'slotActions' });
+      const btnDel = el('button', { class: 'smallBtn danger', title: 'Delete this indexed slot' }, 'Del');
+      btnDel.addEventListener('click', () => {
+        if (entry && entry.id != null) Links.remove(holderObj.id, `idx:${entry.id}`);
+        vm._tryPrimitiveSend(holderObj, 'indexedDeleteRange', [vm.makeNumber(displayIndex), vm.makeNumber(displayIndex)]);
+        this.render();
+      });
+      actions.appendChild(btnDel);
+
+      const handle = el('div', { class: 'grip', draggable: 'true', title: 'Click: open referenced object / toggle line. Drag: retarget reference.' }, '::');
+      Links.bindFromEl(holderObj.id, stableKey, handle);
+
+      handle.addEventListener('dragstart', (ev) => {
+        DND.setSlotRef(ev.dataTransfer, holderObj, stableKey);
+        ev.dataTransfer.effectAllowed = 'link';
+      });
+
+      handle.addEventListener('click', () => {
+        const v = (entry && typeof entry === 'object' && 'value' in entry) ? entry.value : curValue;
+        if (!v || typeof v !== 'object') return;
+        const wasOpen = Outliners.windows.has(identityKey(v));
+        Outliners.open(v, { x: parseFloat(this.root.style.left) + 24, y: parseFloat(this.root.style.top) + 52 });
+        if (wasOpen) Links.toggleVisible(holderObj.id, stableKey);
+        else Links.setVisible(holderObj.id, stableKey, true);
+        if (v && typeof v === 'object' && typeof v.id === 'number') Links.setTarget(holderObj.id, stableKey, v.id);
+        Links.schedule();
+      });
+
+      const top = el('div', { class: 'slotTop' }, toggleBtn, nameEl, valueWrap, handle);
+      const bottom = el('div', { class: 'slotBottom' }, actions);
+
+      row.append(stripe, top, bottom);
+      return row;
+    }
+
+_renderSlotRow(holderObj, slot) {
       const slotName = slot.name;
       const row = el('div', { class: 'slotRow', dataset: { slotName } });
 
@@ -3860,7 +4092,24 @@ function blockValueSelectorForArity(n) {
 
   function retargetSlot(srcObj, slotName, targetObj) {
     try {
-      if (!srcObj || !srcObj.slots) return;
+      if (!srcObj) return;
+
+      if (typeof slotName === 'string' && slotName.startsWith('idx:')) {
+        const id = Number(slotName.slice(4));
+        if (!Number.isFinite(id) || !Array.isArray(srcObj.indexedSlots)) { toast(`Source indexed slot missing: ${slotName}`, 'error'); return; }
+        const pos = srcObj.indexedSlots.findIndex(e => e && e.id === id);
+        if (pos < 0) { toast(`Source indexed slot missing: ${slotName}`, 'error'); return; }
+        srcObj.indexedSlots[pos].value = targetObj;
+        if (targetObj && typeof targetObj === 'object' && typeof targetObj.id === 'number') Links.setTarget(srcObj.id, slotName, targetObj.id);
+        else Links.setTarget(srcObj.id, slotName, NaN);
+        Links.setVisible(srcObj.id, slotName, true);
+        Links.schedule();
+        Outliners.refresh(srcObj);
+        toast(`Retargeted ${srcObj.label || '#' + srcObj.id}.${slotName} -> ${safeDescribe(targetObj)}`);
+        return;
+      }
+
+      if (!srcObj.slots) return;
       if (!vm.hasSlot(srcObj, slotName)) { toast(`Source slot missing: ${slotName}`, 'error'); return; }
       srcObj.slots[slotName].value = targetObj;
       if (targetObj && typeof targetObj === 'object' && typeof targetObj.id === 'number') Links.setTarget(srcObj.id, slotName, targetObj.id);
@@ -3872,6 +4121,7 @@ function blockValueSelectorForArity(n) {
       toast(e instanceof Error ? e.message : String(e), 'error');
     }
   }
+
 
   // ---------------------------------------------------------------------------
   // Toolbar wiring
@@ -4527,10 +4777,11 @@ $('#btnToggleLines').addEventListener('click', (ev) => {
     const scripts = Array.from(document.querySelectorAll('script[type="application/x-selfie-script"][data-selfie-file="true"]'));
     for (const s of scripts) {
       const name = s.dataset.name || '(script)';
-      const code = String(s.textContent || '');
+      let code = String(s.textContent || '');
       try {
         // eslint-disable-next-line no-new-func
-        new Function(code)();
+        code = code.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+      new Function(code)();
       } catch (e) {
         console.error('Selfie boot error in', name, e);
         alert('Selfie boot error in ' + name + ': ' + (e && e.message ? e.message : e));
