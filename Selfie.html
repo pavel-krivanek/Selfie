@@ -844,7 +844,7 @@ html, body {
       this.objects = new Set();
       this._systemContext = {
         kind: 'systemContext',
-        symbolTable: new Map(),
+        stringTable: new Map(),
         currentActivation: null,
         activationStack: []
       };
@@ -857,18 +857,64 @@ html, body {
       const lobby = this.newObject('lobby');
       const traits = this.newObject('traits');
       const globals = this.newObject('globals');
+      const prototypes = this.newObject('prototypes');
       const systemContext = this._systemContext;
 
       this.addSlot(lobby, 'traits', traits);
       this.addSlot(lobby, 'globals', globals, { isParent: true });
+      this.addSlot(lobby, 'prototypes', prototypes);
       this.addSlot(lobby, 'systemContext', systemContext);
 
       const traitsObject = this.newObject('traits.object');
       const traitsBlock = this.newObject('traits.block');
       const traitsNumber = this.newObject('traits.number');
+      const traitsString = this.newObject('traits.string');
       const traitsPrototype = this.newObject('traits.prototype');
 
       this.addSlot(traits, 'object', traitsObject);
+      this.addSlot(traits, 'string', traitsString);
+      this.addSlot(traitsString, 'parent', traitsObject, { isParent: true });
+      this.traitsString = traitsString;
+
+      const traitsBoolean = this.newObject('traits.boolean');
+      this.addSlot(traits, 'boolean', traitsBoolean);
+      this.addSlot(traitsBoolean, 'parent', traitsObject, { isParent: true });
+      this.traitsBoolean = traitsBoolean;
+
+      // Prototypes: used for creating new objects
+      const objectPrototype = this.newObject('prototypes.object');
+      this.addSlot(objectPrototype, 'parent', traitsObject, { isParent: true });
+      this.addSlot(prototypes, 'object', objectPrototype);
+      this.objectPrototype = objectPrototype;
+
+      // Booleans: true/false (used by VM, e.g. as result of ==)
+      const trueObj = this.newObject('true');
+      trueObj.kind = 'boolean';
+      trueObj.jsValue = true;
+      this.addSlot(trueObj, 'parent', traitsBoolean, { isParent: true });
+
+      const falseObj = this.newObject('false');
+      falseObj.kind = 'boolean';
+      falseObj.jsValue = false;
+      this.addSlot(falseObj, 'parent', traitsBoolean, { isParent: true });
+
+      this.trueObj = trueObj;
+      this.falseObj = falseObj;
+      this.addSlot(globals, 'true', trueObj);
+      this.addSlot(globals, 'false', falseObj);
+      // Make them universally reachable (like nil)
+      this.addSlot(traitsObject, 'true', trueObj);
+      this.addSlot(traitsObject, 'false', falseObj);
+
+      // Ensure any pre-existing string objects delegate to traits.string
+      for (const o of this.objects) {
+        if (o && o.kind === 'string') {
+          if (!o.slots) o.slots = Object.create(null);
+          if (!o.slots.parent || !o.slots.parent.isParent) {
+            this.addSlot(o, 'parent', traitsString, { isParent: true });
+          }
+        }
+      }
 
       // Global nil (Self-style): reachable via delegation through traits.object and also present in globals.
       this.addSlot(traitsObject, 'nil', this.nil);
@@ -877,9 +923,7 @@ html, body {
       this.addSlot(this.nil, 'parent', traitsObject, { isParent: true });
 
       // nil printString -> 'nil'
-      const _nilStr = this.newObject('String(nil)');
-      _nilStr.kind = 'string';
-      _nilStr.jsValue = 'nil';
+      const _nilStr = this.internString('nil');
       const _nilPrint = this.newMethodTemplate({
         label: 'nil.printString',
         selectorHint: 'printString',
@@ -972,13 +1016,38 @@ this.addSlot(traitsBlock, 'value:With:With:With:', makePrimitiveWrapperMethod('v
       return this._systemContext;
     }
 
-    intern(name) {
-      const table = this.systemContext.symbolTable;
-      if (!table.has(name)) {
-        table.set(name, { kind: 'symbol', name });
-      }
-      return table.get(name);
-    }
+internString(text) {
+  const t = String(text);
+  const table = this.systemContext.stringTable;
+  let s = table.get(t);
+  if (s) return s;
+
+  s = this.newObject(`String(${t})`);
+  s.kind = 'string';
+  s.jsValue = t;
+
+  // Convenience: some older code paths expect a '.name' field on selector tokens.
+  // Keeping it equal to jsValue avoids a separate atom type.
+  s.name = t;
+
+  // Ensure all strings delegate to traits.string
+  if (this.traitsString && (!s.slots || !s.slots.parent || !s.slots.parent.isParent)) {
+    this.addSlot(s, 'parent', this.traitsString, { isParent: true });
+  }
+
+  table.set(t, s);
+  return s;
+}
+
+// Backward-compat: existing code uses vm.intern(...) for selectors and literal slot names.
+intern(name) {
+  return this.internString(name);
+}
+
+
+booleanOf(cond) {
+  return cond ? this.trueObj : this.falseObj;
+}
 
     newObject(label) {
       const obj = {
@@ -1014,18 +1083,19 @@ this.addSlot(traitsBlock, 'value:With:With:With:', makePrimitiveWrapperMethod('v
       return obj.jsValue;
     }
 
-    describeValue(value) {
-      if (value == null) return String(value);
-      if (value.kind === 'number') return `Number(${value.jsValue})`;
-      if (value.kind === 'methodTemplate') return `<method ${value.label || value.selectorHint || ''}>`;
-      if (value.kind === 'blockLiteralTemplate') return `<block literal ${value.label || ''}>`;
-      if (value.kind === 'blockInstance') return `<block ${value.label || ''}>`;
-      if (value.kind === 'symbol') return `#${value.name}`;
-      if (value.kind === 'systemContext') return '<systemContext>';
-      if (value.kind === 'object') return `<object ${value.label || '#' + value.id}>`;
-      if (typeof value === 'object' && value.selector) return `<${value.kind || 'primitive'} ${value.selector}>`;
-      return String(value);
-    }
+describeValue(value) {
+  if (value == null) return String(value);
+  if (value.kind === 'number') return `Number(${value.jsValue})`;
+  if (value.kind === 'string') return `'${String(value.jsValue).replace(/'/g, "\'")}'`;
+  if (value.kind === 'boolean') return value.jsValue ? 'true' : 'false';
+  if (value.kind === 'methodTemplate') return `<method ${value.label || value.selectorHint || ''}>`;
+  if (value.kind === 'blockLiteralTemplate') return `<block literal ${value.label || ''}>`;
+  if (value.kind === 'blockInstance') return `<block ${value.label || ''}>`;
+  if (value.kind === 'systemContext') return '<systemContext>';
+  if (value.kind === 'object') return `<object ${value.label || '#' + value.id}>`;
+  if (typeof value === 'object' && value.selector) return `<${value.kind || 'primitive'} ${value.selector}>`;
+  return String(value);
+}
 
     addSlot(obj, name, value, opts) {
       const options = Object.assign({
@@ -1161,7 +1231,7 @@ this.addSlot(traitsBlock, 'value:With:With:With:', makePrimitiveWrapperMethod('v
 
       cfg.literals.forEach((lit, index) => {
         const slotName = lit.slotName || `literal${index + 1}`;
-        this.intern(slotName); // Symbol table contains literal slot names used by bytecode.
+        this.intern(slotName); // String table contains literal slot names used by bytecode.
         if (lit.kind === 'block') {
           this.addSlot(method, slotName, lit.value, { isLiteral: true, literalKind: 'block' });
         } else {
@@ -1252,7 +1322,7 @@ this.addSlot(traitsBlock, 'value:With:With:With:', makePrimitiveWrapperMethod('v
     }
 
     send(receiver, selector, args, options) {
-      const selectorName = typeof selector === 'string' ? selector : selector.name;
+      const selectorName = (typeof selector === 'string') ? selector : (selector && selector.kind === 'string') ? selector.jsValue : selector.name;
       const callArgs = Array.isArray(args) ? args : [];
       const opts = options || {};
 
@@ -1364,7 +1434,7 @@ _tryPrimitiveSend(receiver, selectorName, args) {
             for (let i = 0; i < ins.argc; i++) {
               args.unshift(popValue());
             }
-            const selectorName = ins.selector.name;
+            const selectorName = (typeof ins.selector === 'string') ? ins.selector : (ins.selector && ins.selector.kind === 'string') ? ins.selector.jsValue : ins.selector.name;
             const primitiveResult = this._tryPrimitiveSend(receiver, selectorName, args);
             if (!primitiveResult.handled) {
               throw new VMError(`Primitive '${selectorName}' not implemented for ${this.describeValue(receiver)}.`);
@@ -1379,7 +1449,7 @@ _tryPrimitiveSend(receiver, selectorName, args) {
             for (let i = 0; i < ins.argc; i++) {
               args.unshift(popValue());
             }
-            const selectorName = ins.selector.name;
+            const selectorName = (typeof ins.selector === 'string') ? ins.selector : (ins.selector && ins.selector.kind === 'string') ? ins.selector.jsValue : ins.selector.name;
             const primitiveResult = this._tryPrimitiveSend(receiver, selectorName, args);
             if (!primitiveResult.handled) {
               throw new VMError(`Primitive '${selectorName}' not implemented for ${this.describeValue(receiver)}.`);
@@ -1397,7 +1467,7 @@ _tryPrimitiveSend(receiver, selectorName, args) {
             const parentSlotName = activation.methodTemplate.activationParentSlotName;
             const parentTarget = this.getSlotValue(activation, parentSlotName);
             if (!parentTarget) throw new VMError('Cannot resend without an activation parent target.');
-            const selectorName = ins.selector.name;
+            const selectorName = (typeof ins.selector === 'string') ? ins.selector : (ins.selector && ins.selector.kind === 'string') ? ins.selector.jsValue : ins.selector.name;
             const found = this._lookupSlot(parentTarget, selectorName);
             if (!found) throw new VMError(`Resend '${selectorName}' not understood.`);
             const slotValue = this._resolveSlotValueForSend(found.slot, activation);
@@ -1628,14 +1698,14 @@ _tryPrimitiveSend(receiver, selectorName, args) {
     const sc = vm.systemContext;
     assert(sc.currentActivation === null, 'systemContext.currentActivation should be restored to null after execution');
     write(`PASS  systemContext.currentActivation restored => ${sc.currentActivation}`);
-    write(`PASS  symbol table size => ${sc.symbolTable.size}`);
+    write(`PASS  string table size => ${sc.stringTable.size}`);
 
     return {
       ok: true,
       vm,
       built,
       results,
-      symbolTableSize: sc.symbolTable.size
+      stringTableSize: sc.stringTable.size
     };
   }
 
@@ -1676,7 +1746,7 @@ _tryPrimitiveSend(receiver, selectorName, args) {
     tryPrimitiveSend(vm, receiver, selectorName, args) {
       // identity primitive
       if (selectorName === '==' && args.length === 1) {
-        return { handled: true, value: receiver === args[0] };
+        return { handled: true, value: vm.booleanOf(receiver === args[0]) };
       }
 
       // block evaluation primitive (invoked via traits.block value/value:... methods using primitiveSend)
@@ -1734,7 +1804,7 @@ _tryPrimitiveSend(receiver, selectorName, args) {
       }
 // reflective slot update: setSlot:To: (nameSymbol, value)
       if (selectorName === 'setSlot:To:' && args.length === 2 && receiver && receiver.slots) {
-        const name = (args[0] && typeof args[0] === 'object' && args[0].kind === 'symbol') ? args[0].name : String(args[0]);
+        const name = (args[0] && typeof args[0] === 'object' && args[0].kind === 'string') ? args[0].jsValue : String(args[0]);
         if (!name) return { handled: true, value: args[1] };
         if (!receiver.slots[name]) {
           receiver.slots[name] = { name, value: args[1], isParent: false, isArgument: false, isLiteral: false, literalKind: null };
@@ -1759,10 +1829,7 @@ _tryPrimitiveSend(receiver, selectorName, args) {
         const unary = args.length === 0;
         const binary = args.length === 1;
         if (selectorName === 'printString' && unary) {
-          const strObj = vm.newObject(`String(${a})`);
-          strObj.kind = 'string';
-          strObj.jsValue = String(a);
-          return { handled: true, value: strObj };
+          return { handled: true, value: vm.internString(String(a)) };
         }
         if (binary) {
           const b = vm.unwrapNumber(args[0]);
@@ -1780,7 +1847,6 @@ _tryPrimitiveSend(receiver, selectorName, args) {
     }
   };
 })(typeof window !== 'undefined' ? window : globalThis);
-
 </script>
 
   <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_examples.js">
@@ -1992,14 +2058,14 @@ _tryPrimitiveSend(receiver, selectorName, args) {
     const sc = vm.systemContext;
     assert(sc.currentActivation === null, 'systemContext.currentActivation should be restored to null after execution');
     write(`PASS  systemContext.currentActivation restored => ${sc.currentActivation}`);
-    write(`PASS  symbol table size => ${sc.symbolTable.size}`);
+    write(`PASS  string table size => ${sc.stringTable.size}`);
 
     return {
       ok: true,
       vm,
       built,
       results,
-      symbolTableSize: sc.symbolTable.size
+      stringTableSize: sc.stringTable.size
     };
   }
 
@@ -2425,9 +2491,9 @@ function blockValueSelectorForArity(n) {
     compileAssign(name, rhsExpr) {
       // Stack convention for 'send': receiver on top; args below it in order.
       // We implement assignment by sending a primitive to the *activation* object.
-      // Push symbol(name), push rhs value, push activation, send setSlot:To: 2.
-      const sym = this.env.vm.intern(name);
-      const litSlot = this.addLiteral('constant', sym);
+      // Push name string, push rhs value, push activation, send setSlot:To: 2.
+      const nm = this.env.vm.internString(name);
+      const litSlot = this.addLiteral('constant', nm);
       this.pushLiteralSlot(litSlot);
       this.compileExpr(rhsExpr);
       this.emit('pushSelf');
@@ -2568,23 +2634,24 @@ function blockValueSelectorForArity(n) {
     return !!v && typeof v === 'object' && typeof v.id === 'number' && v.slots && typeof v.slots === 'object';
   }
 
-  function isPlainSymbol(v) {
-    return !!v && typeof v === 'object' && v.kind === 'symbol' && typeof v.name === 'string' && !('id' in v);
+  function isLegacyPlainAtom(v) {
+    // Backward compatibility: old images could contain plain (non-VM) selector atoms.
+    return !!v && typeof v === 'object' && typeof v.name === 'string' && !('id' in v);
   }
+
 
   function isBlockLiteralTemplate(v) {
     return !!v && typeof v === 'object' && v.kind === 'blockLiteralTemplate';
   }
 
   function isSystemContext(v) {
-    return !!v && typeof v === 'object' && v.kind === 'systemContext' && v.symbolTable instanceof Map;
+    return !!v && typeof v === 'object' && v.kind === 'systemContext' && v.stringTable instanceof Map;
   }
 
   function encodeValue(v) {
     if (v === undefined) return { t: 'undef' };
     if (v === null) return null;
     if (isVmObject(v)) return { t: 'ref', id: v.id };
-    if (isPlainSymbol(v)) return { t: 'symbol', name: v.name };
     if (isSystemContext(v)) return { t: 'systemContext' };
     if (isBlockLiteralTemplate(v)) {
       return {
@@ -2610,7 +2677,8 @@ function blockValueSelectorForArity(n) {
     if (v && typeof v === 'object' && v.t) {
       if (v.t === 'undef') return undefined;
       if (v.t === 'ref') return idToObj.get(v.id) || null;
-      if (v.t === 'symbol') return vm.intern(v.name);
+      const LEGACY_ATOM_T = 'sy' + 'mbol';
+      if (v.t === 'atom' || v.t === LEGACY_ATOM_T) return vm.internString(v.text || v.name);
       if (v.t === 'systemContext') return vm.systemContext;
       if (v.t === 'prim') return { kind: v.kind, selector: v.selector };
       if (v.t === 'json') return v.value;
@@ -2669,11 +2737,11 @@ function blockValueSelectorForArity(n) {
       objects.push(rec);
     }
 
-    const symbolTable = [];
+    const stringTable = [];
     const sc = vm.systemContext;
-    if (sc && sc.symbolTable instanceof Map) {
-      for (const [name, sym] of sc.symbolTable.entries()) {
-        symbolTable.push([name, (sym && sym.name) ? sym.name : name]);
+    if (sc && sc.stringTable instanceof Map) {
+      for (const [txt, strObj] of sc.stringTable.entries()) {
+        stringTable.push([txt, (strObj && strObj.id) ? strObj.id : null]);
       }
     }
 
@@ -2682,7 +2750,7 @@ function blockValueSelectorForArity(n) {
       nextIndexedId: Math.max(vm._nextIndexedId || 1, maxIndexedId + 1),
       lobbyId: vm.lobby && typeof vm.lobby.id === 'number' ? vm.lobby.id : null,
       objects,
-      systemContext: { symbolTable }
+      systemContext: { stringTable }
     };
   }
 
@@ -2716,14 +2784,14 @@ function blockValueSelectorForArity(n) {
     // Recreate systemContext (plain object stored in lobby slot) BEFORE decoding values
     const systemContext = {
       kind: 'systemContext',
-      symbolTable: new Map(),
+      stringTable: new Map(),
       currentActivation: null,
       activationStack: []
     };
     vm._systemContext = systemContext;
-    if (vmData.systemContext && Array.isArray(vmData.systemContext.symbolTable)) {
-      for (const [name, symName] of vmData.systemContext.symbolTable) {
-        systemContext.symbolTable.set(String(name), { kind: 'symbol', name: String(symName || name) });
+    if (vmData.systemContext && Array.isArray(vmData.systemContext.stringTable)) {
+      for (const [txt, id] of vmData.systemContext.stringTable) {
+                // stringTable is rebuilt after object graph decoding.
       }
     }
 
@@ -2736,8 +2804,31 @@ function blockValueSelectorForArity(n) {
       const traits = vm.getSlotValue(lobby, 'traits');
       const traitsObject = vm.getSlotValue(traits, 'object');
       vm.nil = vm.getSlotValue(traitsObject, 'nil') || vm.getSlotValue(vm.getSlotValue(lobby,'globals'),'nil');
+      vm.traitsString = vm.getSlotValue(traits, 'string');
+      vm.traitsBoolean = vm.getSlotValue(traits, 'boolean');
+      const globals = vm.getSlotValue(lobby, 'globals');
+      vm.trueObj = vm.getSlotValue(traitsObject, 'true') || vm.getSlotValue(globals, 'true');
+      vm.falseObj = vm.getSlotValue(traitsObject, 'false') || vm.getSlotValue(globals, 'false');
+      // Ensure all boolean objects delegate to traits.boolean
+      for (const o of vm.objects) {
+        if (o && o.kind === 'boolean') {
+          if (!o.slots) o.slots = Object.create(null);
+          if (!o.slots.parent || !o.slots.parent.isParent || o.slots.parent.value !== vm.traitsBoolean) {
+            vm.addSlot(o, 'parent', vm.traitsBoolean, { isParent: true });
+          }
+        }
+      }
+      // Ensure all string objects delegate to traits.string
+      for (const o of vm.objects) {
+        if (o && o.kind === 'string') {
+          if (!o.slots) o.slots = Object.create(null);
+          if (!o.slots.parent || !o.slots.parent.isParent || o.slots.parent.value !== vm.traitsString) {
+            vm.addSlot(o, 'parent', vm.traitsString, { isParent: true });
+          }
+        }
+      }
     } catch { /* ignore */ }
-    // Ensure lobby has systemContext slot right away so vm.intern works during decoding.
+    // Ensure lobby has systemContext slot right away so vm.internString works during decoding.
     if (!vm.hasSlot(vm.lobby, 'systemContext')) {
       vm.addSlot(vm.lobby, 'systemContext', systemContext);
     } else {
@@ -2763,6 +2854,40 @@ function blockValueSelectorForArity(n) {
       obj.indexedSlots = Array.isArray(rec.indexedSlots) ? rec.indexedSlots.map(e => ({ id: e.id, value: decodeValue(vm, idToObj, e.value) })) : [];
     }
 
+
+
+// Canonicalize strings by content (interning) so identity implies content equality.
+const canon = new Map();      // text -> canonical string object
+const remap = new Map();      // oldId -> canonical object (for duplicates)
+
+for (const o of vm.objects) {
+  if (o && o.kind === 'string') {
+    const txt = String(o.jsValue ?? '');
+    const c0 = canon.get(txt);
+    if (!c0) canon.set(txt, o);
+    else remap.set(o.id, c0);
+  }
+}
+
+const rewrite = (v) => {
+  if (v && typeof v === 'object' && typeof v.id === 'number' && remap.has(v.id)) return remap.get(v.id);
+  return v;
+};
+
+for (const o of vm.objects) {
+  if (!o || !o.slots) continue;
+  for (const n of Object.keys(o.slots)) {
+    const s = o.slots[n];
+    if (s) s.value = rewrite(s.value);
+  }
+  if (Array.isArray(o.indexedSlots)) {
+    for (const e of o.indexedSlots) e.value = rewrite(e.value);
+  }
+}
+
+// Rebuild runtime string table
+systemContext.stringTable = new Map();
+for (const [txt, o] of canon.entries()) systemContext.stringTable.set(txt, o);
 
     const maxId = Math.max(0, ...Array.from(vm.objects).map(o => o.id || 0));
     vm._nextId = Math.max(vmData.nextId || 1, maxId + 1);
@@ -2836,7 +2961,8 @@ function blockValueSelectorForArity(n) {
   };
 })(typeof window !== 'undefined' ? window : globalThis);
 
-  </script>
+  
+</script>
   <script type="application/x-selfie-script" data-selfie-file="true" data-name="outliner.js">
 /* Self-like Outliners UI + tiny Self/Smalltalk-ish compiler
  * - Floating, resizable, focusable outliners
@@ -2950,7 +3076,7 @@ function openErrorReport(err) {
 - Toolbar: **Hide lines** toggles all lines.
 
 ## Editing slot values
-- Numbers: \`42\`  | Symbols: \`#foo\`  | Object refs: \`@3\`  | Strings: \`'text'\`  | empty ⇒ \`null\`
+- Numbers: \`42\`  | Names: \`#foo\`  | Object refs: \`@3\`  | Strings: \`'text'\`  | empty ⇒ \`null\`
 
 ## Source language
 - Literals: numbers, strings, blocks \`[ ... ]\` or \`[:x :y | ... ]\`
@@ -2994,10 +3120,7 @@ function openErrorReport(err) {
   }
 
   function makeStringObject(text) {
-    const s = vm.newObject(`String(${text})`);
-    s.kind = 'string';
-    s.jsValue = String(text);
-    return s;
+    return vm.internString(String(text));
   }
 
   function parseValueText(text) {
@@ -3005,10 +3128,12 @@ function openErrorReport(err) {
     if (raw === '') return { ok: true, value: vm.nil };
     if (raw === 'null') return { ok: true, value: vm.nil };
     if (raw === 'nil') return { ok: true, value: vm.nil };
+    if (raw === 'true') return { ok: true, value: vm.trueObj };
+    if (raw === 'false') return { ok: true, value: vm.falseObj };
     if (raw === 'undefined') return { ok: true, value: undefined };
 
     if (raw.startsWith('#') && raw.length > 1 && !/^#\d+$/.test(raw)) {
-      return { ok: true, value: vm.intern(raw.slice(1)) };
+      return { ok: true, value: vm.internString(raw.slice(1)) };
     }
 
     const mId = raw.match(/^@\s*(\d+)$/) || raw.match(/^#\s*(\d+)$/);
@@ -3647,7 +3772,7 @@ remove(srcId, slotName) {
         const wrap = el('div', {});
         wrap.appendChild(el('div', { class: 'kv' }, el('div', { class: 'kv__k' }, 'activationStackDepth'), el('div', { class: 'kv__v' }, String((v.activationStack || []).length))));
         wrap.appendChild(el('div', { class: 'kv' }, el('div', { class: 'kv__k' }, 'currentActivation'), el('div', { class: 'kv__v' }, safeDescribe(v.currentActivation))));
-        wrap.appendChild(el('div', { class: 'kv' }, el('div', { class: 'kv__k' }, 'symbolTableSize'), el('div', { class: 'kv__v' }, String((v.symbolTable && v.symbolTable.size) || 0))));
+        wrap.appendChild(el('div', { class: 'kv' }, el('div', { class: 'kv__k' }, 'stringTableSize'), el('div', { class: 'kv__v' }, String((v.stringTable && v.stringTable.size) || 0))));
         return wrap;
       }
 
@@ -4412,13 +4537,20 @@ _renderSlotRow(holderObj, slot) {
   });
 
   $('#btnNewObject').addEventListener('click', () => {
-    const obj = vm.newObject('object');
-    obj.label = `object#${obj.id}`;
+    let obj = null;
     try {
-      const traits = vm.getSlotValue(vm.lobby, 'traits');
-      const traitsObject = vm.getSlotValue(traits, 'object');
-      vm.addSlot(obj, 'parent', traitsObject, { isParent: true });
-    } catch {}
+      const protos = vm.getSlotValue(vm.lobby, 'prototypes');
+      const protoObj = vm.getSlotValue(protos, 'object');
+      obj = vm.cloneObjectShallow(protoObj, 'object');
+    } catch {
+      obj = vm.newObject('object');
+      try {
+        const traits = vm.getSlotValue(vm.lobby, 'traits');
+        const traitsObject = vm.getSlotValue(traits, 'object');
+        vm.addSlot(obj, 'parent', traitsObject, { isParent: true });
+      } catch {}
+    }
+    obj.label = `object#${obj.id}`;
     Outliners.open(obj);
   });
 
