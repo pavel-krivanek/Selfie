@@ -994,6 +994,11 @@ this.addSlot(traitsObject, '==', makePrimitiveMethod('==', ['arg']));
       this.addSlot(traitsObject, 'indexedAt:', makePrimitiveMethod('indexedAt', ['index']));
       this.addSlot(traitsObject, 'indexedAt:Put:', makePrimitiveMethod('indexedAtPut', ['index', 'value']));
       this.addSlot(traitsObject, 'indexedSize', makePrimitiveMethod('indexedSize', []));
+
+
+// Non-indexed slots API
+this.addSlot(traitsObject, 'addSlot:Type:Parent:', makePrimitiveMethod('addSlot:Type:Parent:', ['name', 'type', 'isParent']));
+this.addSlot(traitsObject, 'removeSlot:', makePrimitiveMethod('removeSlot:', ['name']));
 this.addSlot(traitsObject, 'setSlot:To:', makePrimitiveMethod('setSlot:To:', ['name', 'value']));
 
 this.addSlot(traitsNumber, '+', makePrimitiveMethod('+', ['arg']));
@@ -1809,6 +1814,68 @@ _tryPrimitiveSend(receiver, selectorName, args) {
         receiver.indexedSlots[idx - 1].value = args[1];
         return { handled: true, value: args[1] };
       }
+
+// Non-indexed slots primitives (ignored by indexedSlots).
+// addSlot:Type:Parent: (nameString, typeString, boolean)
+if (selectorName === 'addSlot:Type:Parent:' && args.length === 3 && receiver && receiver.slots) {
+  const nameArg = args[0];
+  const typeArg = args[1];
+  const parentArg = args[2];
+
+  const slotName =
+    (nameArg && typeof nameArg === 'object' && nameArg.kind === 'string') ? String(nameArg.jsValue) :
+    String(nameArg);
+
+  const slotType =
+    (typeArg && typeof typeArg === 'object' && typeArg.kind === 'string') ? String(typeArg.jsValue) :
+    String(typeArg);
+
+  const isParent =
+    (parentArg === vm.trueObj) ||
+    (parentArg && typeof parentArg === 'object' && parentArg.kind === 'boolean' && parentArg.jsValue === true);
+
+  const typeNorm = slotType.trim().toLowerCase();
+  const isRW = (typeNorm === 'rw');
+
+  let value = vm.nil ?? null;
+
+  if (typeNorm === 'method') {
+    const selector = slotName;
+    const isKeyword = selector.includes(':');
+    const isBinary = !isKeyword && /[^A-Za-z0-9_]/.test(selector);
+    const argc = isKeyword ? (selector.match(/:/g) || []).length : (isBinary ? 1 : 0);
+    const argNames = [];
+    if (argc === 1) argNames.push('arg');
+    else if (argc > 1) for (let i = 1; i <= argc; i++) argNames.push(`arg${i}`);
+
+    value = vm.newMethodTemplate({
+      label: `${receiver.label || '#' + receiver.id}.${selector}`,
+      selectorHint: selector,
+      argNames,
+      source: '',
+      // default body: return nil
+      bytecode: 'pushSelf\nsend nil\nreturnTop'
+    });
+  }
+
+  // Create/update slot
+  vm.addSlot(receiver, slotName, value, { isParent, isReadWrite: isRW });
+  return { handled: true, value: receiver };
+}
+
+// removeSlot: (nameString)
+if (selectorName === 'removeSlot:' && args.length === 1 && receiver && receiver.slots) {
+  const nameArg = args[0];
+  const slotName =
+    (nameArg && typeof nameArg === 'object' && nameArg.kind === 'string') ? String(nameArg.jsValue) :
+    String(nameArg);
+
+  if (receiver.slots && Object.prototype.hasOwnProperty.call(receiver.slots, slotName)) {
+    delete receiver.slots[slotName];
+  }
+  return { handled: true, value: receiver };
+}
+
 // reflective slot update: setSlot:To: (nameSymbol, value)
       if (selectorName === 'setSlot:To:' && args.length === 2 && receiver && receiver.slots) {
         const name = (args[0] && typeof args[0] === 'object' && args[0].kind === 'string') ? args[0].jsValue : String(args[0]);
