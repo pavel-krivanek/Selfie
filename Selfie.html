@@ -1002,6 +1002,12 @@ this.addSlot(traitsNumber, '*', makePrimitiveMethod('*', ['arg']));
 this.addSlot(traitsNumber, '/', makePrimitiveMethod('/', ['arg']));
 this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', []));
 
+
+this.addSlot(traitsString, ',', makePrimitiveMethod(',', ['arg']));
+this.addSlot(traitsString, 'size', makePrimitiveMethod('size', []));
+this.addSlot(traitsString, 'copyFrom:To:', makePrimitiveMethod('copyFrom:To:', ['from', 'to']));
+this.addSlot(traitsString, 'rangeFrom:To:', makePrimitiveWrapperMethod('rangeFrom:To:', 'copyFrom:To:', ['from', 'to']));
+
 // Block invocation is expressed as normal methods (no special send handling).
 this.addSlot(traitsBlock, 'value', makePrimitiveWrapperMethod('value', 'blockValue', []));
 this.addSlot(traitsBlock, 'value:', makePrimitiveWrapperMethod('value:', 'blockValue', ['arg']));
@@ -1847,6 +1853,41 @@ _tryPrimitiveSend(receiver, selectorName, args) {
             case '/': return { handled: true, value: vm.makeNumber(a / b) };
             default: break;
           }
+        }
+      }
+
+
+
+      // String primitives (interned strings, identity == content).
+      if (receiver && typeof receiver === 'object' && receiver.kind === 'string') {
+        const s = String(receiver.jsValue ?? '');
+        const unary = args.length === 0;
+        const binary = args.length === 1;
+
+        const unwrapString = (v) => {
+          if (v && typeof v === 'object' && v.kind === 'string') return String(v.jsValue ?? '');
+          throw new VMError('Expected a string object.');
+        };
+
+        if (selectorName === 'size' && unary) {
+          return { handled: true, value: vm.makeNumber(s.length) };
+        }
+
+        if (selectorName === ',' && binary) {
+          const t = unwrapString(args[0]);
+          return { handled: true, value: vm.internString(s + t) };
+        }
+
+        if ((selectorName === 'copyFrom:To:' || selectorName === 'rangeFrom:To:') && args.length === 2) {
+          const from = Math.floor(vm.unwrapNumber(args[0]));
+          const to = Math.floor(vm.unwrapNumber(args[1]));
+          const len = s.length;
+          if (!Number.isFinite(from) || !Number.isFinite(to)) throw new VMError('copyFrom:To: expects integer indices.');
+          if (from < 1 || to < 0) throw new VMError('copyFrom:To: indices are 1-based.');
+          if (from > to) return { handled: true, value: vm.internString('') };
+          if (from > len) return { handled: true, value: vm.internString('') };
+          if (to > len) throw new VMError('copyFrom:To: index out of range.');
+          return { handled: true, value: vm.internString(s.slice(from - 1, to)) };
         }
       }
 
