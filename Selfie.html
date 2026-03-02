@@ -852,194 +852,11 @@ html, body {
     }
 
     _bootstrapLobby() {
-      const lobby = this.newObject('lobby');
-      const globals = this.newObject('globals');
-      const traits = this.newObject('traits');
-      const defaultBehavior = this.newObject('defaultBehavior');
-      const systemContext = this._systemContext;
-
-      // lobby
-      this.addSlot(lobby, 'globals', globals, { isParent: true });
-      this.addSlot(lobby, 'traits', traits);
-      this.addSlot(lobby, 'defaultBehavior', defaultBehavior);
-      this.addSlot(lobby, 'systemContext', systemContext);
-      this.addSlot(globals, 'lobby', lobby);
-
-      // defaultBehavior should see lobby/globals so global names (true/false/nil) work inside all methods.
-      this.addSlot(defaultBehavior, 'parent', globals, { isParent: true });
-
-      // traits namespace
-      const traitsClonable = this.newObject('traits.clonable');
-      const traitsOddball = this.newObject('traits.oddball');
-      const traitsOrderedOddball = this.newObject('traits.orderedOddball');
-      const traitsNumber = this.newObject('traits.number');
-      const traitsString = this.newObject('traits.string');
-      const traitsBlock = this.newObject('traits.block');
-
-      this.addSlot(traits, 'clonable', traitsClonable);
-      this.addSlot(traits, 'oddball', traitsOddball);
-      this.addSlot(traits, 'orderedOddball', traitsOrderedOddball);
-      this.addSlot(traits, 'number', traitsNumber);
-      this.addSlot(traits, 'string', traitsString);
-      this.addSlot(traits, 'block', traitsBlock);
-
-      // parent chain
-      this.addSlot(traitsClonable, 'parent', defaultBehavior, { isParent: true });
-      this.addSlot(traitsOddball, 'parent', defaultBehavior, { isParent: true });
-
-      // lobby should behave like an oddball while still delegating to globals
-      this.addSlot(lobby, 'oddball', traitsOddball, { isParent: true });
-      this.addSlot(traitsOrderedOddball, 'parent', traitsOddball, { isParent: true });
-      this.addSlot(traitsNumber, 'parent', traitsOrderedOddball, { isParent: true });
-      this.addSlot(traitsString, 'parent', traitsClonable, { isParent: true });
-      this.addSlot(traitsBlock, 'parent', traitsClonable, { isParent: true });
-
-      this.traitsString = traitsString;
-
-      // Helpers: create primitive-calling methods
-      const makePrimitiveMethod = (selectorName, argNames) => {
-        const argc = argNames.length;
-        const parts = [];
-        // primitiveSend expects: receiver on top, args below.
-        for (const a of argNames) {
-          parts.push('pushSelf');
-          parts.push(`send ${a}`);
-        }
-        parts.push('pushSelf');
-        parts.push('send self');
-        parts.push(`primitiveSend ${selectorName} ${argc}`);
-        parts.push('returnTop');
-        return this.newMethodTemplate({
-          label: `primitive ${selectorName}`,
-          selectorHint: selectorName,
-          argNames,
-          bytecode: parts.join('\n')
-        });
-      };
-
-      const makePrimitiveWrapperMethod = (methodSelector, primitiveSelector, argNames) => {
-        const argc = argNames.length;
-        const parts = [];
-        for (const a of argNames) {
-          parts.push('pushSelf');
-          parts.push(`send ${a}`);
-        }
-        parts.push('pushSelf');
-        parts.push('send self');
-        parts.push(`primitiveSend ${primitiveSelector} ${argc}`);
-        parts.push('returnTop');
-        return this.newMethodTemplate({
-          label: `primitive ${methodSelector}`,
-          selectorHint: methodSelector,
-          argNames,
-          bytecode: parts.join('\n')
-        });
-      };
-
-      // defaultBehavior: common behavior for (almost) all objects
-      this.addSlot(defaultBehavior, '==', makePrimitiveMethod('==', ['arg']));
-      this.addSlot(defaultBehavior, 'setSlot:To:', makePrimitiveMethod('setSlot:To:', ['name', 'value']));
-      this.addSlot(defaultBehavior, 'addSlot:Type:Parent:', makePrimitiveMethod('addSlot:Type:Parent:', ['name', 'type', 'isParent']));
-      this.addSlot(defaultBehavior, 'removeSlot:', makePrimitiveMethod('removeSlot:', ['name']));
-      // Indexed slots API
-      this.addSlot(defaultBehavior, 'addIndexedSlots:', makePrimitiveMethod('indexedAdd', ['count']));
-      this.addSlot(defaultBehavior, 'deleteIndexedSlotsFrom:To:', makePrimitiveMethod('indexedDeleteRange', ['from', 'to']));
-      this.addSlot(defaultBehavior, 'indexedAt:', makePrimitiveMethod('indexedAt', ['index']));
-      this.addSlot(defaultBehavior, 'indexedAt:Put:', makePrimitiveMethod('indexedAtPut', ['index', 'value']));
-      this.addSlot(defaultBehavior, 'indexedSize', makePrimitiveMethod('indexedSize', []));
-
-      // traits.clonable
-      this.addSlot(traitsClonable, 'clone', makePrimitiveMethod('clone', []));
-
-      // traits.oddball: clone returns self
-      const oddClone = this.newMethodTemplate({
-        label: 'oddball.clone',
-        selectorHint: 'clone',
-        argNames: [],
-        bytecode: 'pushSelf\nsend self\nreturnTop'
-      });
-      this.addSlot(traitsOddball, 'clone', oddClone);
-
-      // traits.number primitives
-      this.addSlot(traitsNumber, '+', makePrimitiveMethod('+', ['arg']));
-      this.addSlot(traitsNumber, '-', makePrimitiveMethod('-', ['arg']));
-      this.addSlot(traitsNumber, '*', makePrimitiveMethod('*', ['arg']));
-      this.addSlot(traitsNumber, '/', makePrimitiveMethod('/', ['arg']));
-      this.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', []));
-
-      // traits.string primitives
-      this.addSlot(traitsString, ',', makePrimitiveMethod(',', ['arg']));
-      this.addSlot(traitsString, 'size', makePrimitiveMethod('size', []));
-      this.addSlot(traitsString, 'copyFrom:To:', makePrimitiveMethod('copyFrom:To:', ['from', 'to']));
-
-      // traits.block value/value:...
-      this.addSlot(traitsBlock, 'value', makePrimitiveWrapperMethod('value', 'blockValue', []));
-      this.addSlot(traitsBlock, 'value:', makePrimitiveWrapperMethod('value:', 'blockValue', ['arg']));
-      this.addSlot(traitsBlock, 'value:With:', makePrimitiveWrapperMethod('value:With:', 'blockValue', ['arg1', 'arg2']));
-      this.addSlot(traitsBlock, 'value:With:With:', makePrimitiveWrapperMethod('value:With:With:', 'blockValue', ['arg1', 'arg2', 'arg3']));
-      this.addSlot(traitsBlock, 'value:With:With:With:', makePrimitiveWrapperMethod('value:With:With:With:', 'blockValue', ['arg1', 'arg2', 'arg3', 'arg4']));
-
-      // globals oddballs
-      const trueObj = this.newObject('true');
-      trueObj.kind = 'oddball';
-      const falseObj = this.newObject('false');
-      falseObj.kind = 'oddball';
-
-      // Oddball printString
-      const sNil = this.internString('nil');
-      const sTrue = this.internString('true');
-      const sFalse = this.internString('false');
-      const constMethod = (label, valueObj) => this.newMethodTemplate({
-        label,
-        selectorHint: 'printString',
-        argNames: [],
-        bytecode: 'pushSelf\nsend literal1\nreturnTop',
-        literals: [{ kind: 'constant', slotName: 'literal1', value: valueObj }]
-      });
-
-      this.addSlot(this.nil, 'printString', constMethod('nil.printString', sNil));
-      this.addSlot(trueObj, 'printString', constMethod('true.printString', sTrue));
-      this.addSlot(falseObj, 'printString', constMethod('false.printString', sFalse));
-
-      // nil already created in constructor
-      this.addSlot(this.nil, 'parent', traitsOddball, { isParent: true });
-      this.addSlot(trueObj, 'parent', traitsOddball, { isParent: true });
-      this.addSlot(falseObj, 'parent', traitsOddball, { isParent: true });
-
-      this.addSlot(globals, 'true', trueObj);
-      this.addSlot(globals, 'false', falseObj);
-      this.addSlot(globals, 'nil', this.nil);
-
-// js: access to JavaScript evaluation / console
-const jsObj = this.newObject('js');
-jsObj.kind = 'oddball';
-this.addSlot(jsObj, 'parent', traitsOddball, { isParent: true });
-this.addSlot(globals, 'js', jsObj);
-this.jsObj = jsObj;
-
-this.addSlot(jsObj, 'evaluate:', makePrimitiveMethod('evaluate:', ['code']));
-this.addSlot(jsObj, 'log:', makePrimitiveMethod('jsLog:', ['value']));
-
-      this.trueObj = trueObj;
-      this.falseObj = falseObj;
-
-      // outlinerObject: clonable + lobby as parents
-      const outlinerObject = this.newObject('outlinerObject');
-      this.addSlot(outlinerObject, 'clonable', traitsClonable, { isParent: true });
-      this.addSlot(outlinerObject, 'lobby', lobby, { isParent: true });
-      this.addSlot(globals, 'outlinerObject', outlinerObject);
-      this.outlinerObject = outlinerObject;
-
-      // Ensure interned strings delegate to traits.string
-      try {
-        for (const o of this.objects) {
-          if (o && o.kind === 'string' && !this.hasSlot(o, 'parent')) {
-            this.addSlot(o, 'parent', traitsString, { isParent: true });
-          }
-        }
-      } catch { /* ignore */ }
-
-      return lobby;
+      const g = (typeof window !== 'undefined' ? window : globalThis);
+      if (!g.SelfieBootstrap || typeof g.SelfieBootstrap.bootstrap !== 'function') {
+        throw new Error('SelfieBootstrap not loaded.');
+      }
+      return g.SelfieBootstrap.bootstrap(this);
     }
 
     get systemContext() {
@@ -1766,6 +1583,206 @@ _tryPrimitiveSend(receiver, selectorName, args) {
   }
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
+<script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_bootstrap.js">
+(function (global) {
+  'use strict';
+
+  global.SelfieBootstrap = {
+    bootstrap(vm) {
+
+      const lobby = vm.newObject('lobby');
+      const globals = vm.newObject('globals');
+      const traits = vm.newObject('traits');
+      const defaultBehavior = vm.newObject('defaultBehavior');
+      const systemContext = vm._systemContext;
+
+      // lobby
+      vm.addSlot(lobby, 'globals', globals, { isParent: true });
+      vm.addSlot(lobby, 'traits', traits);
+      vm.addSlot(lobby, 'defaultBehavior', defaultBehavior);
+      vm.addSlot(lobby, 'systemContext', systemContext);
+      vm.addSlot(globals, 'lobby', lobby);
+
+      // defaultBehavior should see lobby/globals so global names (true/false/nil) work inside all methods.
+      vm.addSlot(defaultBehavior, 'parent', globals, { isParent: true });
+
+      // traits namespace
+      const traitsClonable = vm.newObject('traits.clonable');
+      const traitsOddball = vm.newObject('traits.oddball');
+      const traitsOrderedOddball = vm.newObject('traits.orderedOddball');
+      const traitsNumber = vm.newObject('traits.number');
+      const traitsString = vm.newObject('traits.string');
+      const traitsBlock = vm.newObject('traits.block');
+
+      vm.addSlot(traits, 'clonable', traitsClonable);
+      vm.addSlot(traits, 'oddball', traitsOddball);
+      vm.addSlot(traits, 'orderedOddball', traitsOrderedOddball);
+      vm.addSlot(traits, 'number', traitsNumber);
+      vm.addSlot(traits, 'string', traitsString);
+      vm.addSlot(traits, 'block', traitsBlock);
+
+      // parent chain
+      vm.addSlot(traitsClonable, 'parent', defaultBehavior, { isParent: true });
+      vm.addSlot(traitsOddball, 'parent', defaultBehavior, { isParent: true });
+
+      // lobby should behave like an oddball while still delegating to globals
+      vm.addSlot(lobby, 'oddball', traitsOddball, { isParent: true });
+      vm.addSlot(traitsOrderedOddball, 'parent', traitsOddball, { isParent: true });
+      vm.addSlot(traitsNumber, 'parent', traitsOrderedOddball, { isParent: true });
+      vm.addSlot(traitsString, 'parent', traitsClonable, { isParent: true });
+      vm.addSlot(traitsBlock, 'parent', traitsClonable, { isParent: true });
+
+      vm.traitsString = traitsString;
+
+      // Helpers: create primitive-calling methods
+      const makePrimitiveMethod = (selectorName, argNames) => {
+        const argc = argNames.length;
+        const parts = [];
+        // primitiveSend expects: receiver on top, args below.
+        for (const a of argNames) {
+          parts.push('pushSelf');
+          parts.push(`send ${a}`);
+        }
+        parts.push('pushSelf');
+        parts.push('send self');
+        parts.push(`primitiveSend ${selectorName} ${argc}`);
+        parts.push('returnTop');
+        return vm.newMethodTemplate({
+          label: `primitive ${selectorName}`,
+          selectorHint: selectorName,
+          argNames,
+          bytecode: parts.join('\n')
+        });
+      };
+
+      const makePrimitiveWrapperMethod = (methodSelector, primitiveSelector, argNames) => {
+        const argc = argNames.length;
+        const parts = [];
+        for (const a of argNames) {
+          parts.push('pushSelf');
+          parts.push(`send ${a}`);
+        }
+        parts.push('pushSelf');
+        parts.push('send self');
+        parts.push(`primitiveSend ${primitiveSelector} ${argc}`);
+        parts.push('returnTop');
+        return vm.newMethodTemplate({
+          label: `primitive ${methodSelector}`,
+          selectorHint: methodSelector,
+          argNames,
+          bytecode: parts.join('\n')
+        });
+      };
+
+      // defaultBehavior: common behavior for (almost) all objects
+      vm.addSlot(defaultBehavior, '==', makePrimitiveMethod('==', ['arg']));
+      vm.addSlot(defaultBehavior, 'setSlot:To:', makePrimitiveMethod('setSlot:To:', ['name', 'value']));
+      vm.addSlot(defaultBehavior, 'addSlot:Type:Parent:', makePrimitiveMethod('addSlot:Type:Parent:', ['name', 'type', 'isParent']));
+      vm.addSlot(defaultBehavior, 'removeSlot:', makePrimitiveMethod('removeSlot:', ['name']));
+      // Indexed slots API
+      vm.addSlot(defaultBehavior, 'addIndexedSlots:', makePrimitiveMethod('indexedAdd', ['count']));
+      vm.addSlot(defaultBehavior, 'deleteIndexedSlotsFrom:To:', makePrimitiveMethod('indexedDeleteRange', ['from', 'to']));
+      vm.addSlot(defaultBehavior, 'indexedAt:', makePrimitiveMethod('indexedAt', ['index']));
+      vm.addSlot(defaultBehavior, 'indexedAt:Put:', makePrimitiveMethod('indexedAtPut', ['index', 'value']));
+      vm.addSlot(defaultBehavior, 'indexedSize', makePrimitiveMethod('indexedSize', []));
+
+      // traits.clonable
+      vm.addSlot(traitsClonable, 'clone', makePrimitiveMethod('clone', []));
+
+      // traits.oddball: clone returns self
+      const oddClone = vm.newMethodTemplate({
+        label: 'oddball.clone',
+        selectorHint: 'clone',
+        argNames: [],
+        bytecode: 'pushSelf\nsend self\nreturnTop'
+      });
+      vm.addSlot(traitsOddball, 'clone', oddClone);
+
+      // traits.number primitives
+      vm.addSlot(traitsNumber, '+', makePrimitiveMethod('+', ['arg']));
+      vm.addSlot(traitsNumber, '-', makePrimitiveMethod('-', ['arg']));
+      vm.addSlot(traitsNumber, '*', makePrimitiveMethod('*', ['arg']));
+      vm.addSlot(traitsNumber, '/', makePrimitiveMethod('/', ['arg']));
+      vm.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', []));
+
+      // traits.string primitives
+      vm.addSlot(traitsString, ',', makePrimitiveMethod(',', ['arg']));
+      vm.addSlot(traitsString, 'size', makePrimitiveMethod('size', []));
+      vm.addSlot(traitsString, 'copyFrom:To:', makePrimitiveMethod('copyFrom:To:', ['from', 'to']));
+
+      // traits.block value/value:...
+      vm.addSlot(traitsBlock, 'value', makePrimitiveWrapperMethod('value', 'blockValue', []));
+      vm.addSlot(traitsBlock, 'value:', makePrimitiveWrapperMethod('value:', 'blockValue', ['arg']));
+      vm.addSlot(traitsBlock, 'value:With:', makePrimitiveWrapperMethod('value:With:', 'blockValue', ['arg1', 'arg2']));
+      vm.addSlot(traitsBlock, 'value:With:With:', makePrimitiveWrapperMethod('value:With:With:', 'blockValue', ['arg1', 'arg2', 'arg3']));
+      vm.addSlot(traitsBlock, 'value:With:With:With:', makePrimitiveWrapperMethod('value:With:With:With:', 'blockValue', ['arg1', 'arg2', 'arg3', 'arg4']));
+
+      // globals oddballs
+      const trueObj = vm.newObject('true');
+      trueObj.kind = 'oddball';
+      const falseObj = vm.newObject('false');
+      falseObj.kind = 'oddball';
+
+      // Oddball printString
+      const sNil = vm.internString('nil');
+      const sTrue = vm.internString('true');
+      const sFalse = vm.internString('false');
+      const constMethod = (label, valueObj) => vm.newMethodTemplate({
+        label,
+        selectorHint: 'printString',
+        argNames: [],
+        bytecode: 'pushSelf\nsend literal1\nreturnTop',
+        literals: [{ kind: 'constant', slotName: 'literal1', value: valueObj }]
+      });
+
+      vm.addSlot(vm.nil, 'printString', constMethod('nil.printString', sNil));
+      vm.addSlot(trueObj, 'printString', constMethod('true.printString', sTrue));
+      vm.addSlot(falseObj, 'printString', constMethod('false.printString', sFalse));
+
+      // nil already created in constructor
+      vm.addSlot(vm.nil, 'parent', traitsOddball, { isParent: true });
+      vm.addSlot(trueObj, 'parent', traitsOddball, { isParent: true });
+      vm.addSlot(falseObj, 'parent', traitsOddball, { isParent: true });
+
+      vm.addSlot(globals, 'true', trueObj);
+      vm.addSlot(globals, 'false', falseObj);
+      vm.addSlot(globals, 'nil', vm.nil);
+
+// js: access to JavaScript evaluation / console
+const jsObj = vm.newObject('js');
+jsObj.kind = 'oddball';
+vm.addSlot(jsObj, 'parent', traitsOddball, { isParent: true });
+vm.addSlot(globals, 'js', jsObj);
+vm.jsObj = jsObj;
+
+vm.addSlot(jsObj, 'evaluate:', makePrimitiveMethod('evaluate:', ['code']));
+vm.addSlot(jsObj, 'log:', makePrimitiveMethod('jsLog:', ['value']));
+
+      vm.trueObj = trueObj;
+      vm.falseObj = falseObj;
+
+      // outlinerObject: clonable + lobby as parents
+      const outlinerObject = vm.newObject('outlinerObject');
+      vm.addSlot(outlinerObject, 'clonable', traitsClonable, { isParent: true });
+      vm.addSlot(outlinerObject, 'lobby', lobby, { isParent: true });
+      vm.addSlot(globals, 'outlinerObject', outlinerObject);
+      vm.outlinerObject = outlinerObject;
+
+      // Ensure interned strings delegate to traits.string
+      try {
+        for (const o of vm.objects) {
+          if (o && o.kind === 'string' && !vm.hasSlot(o, 'parent')) {
+            vm.addSlot(o, 'parent', traitsString, { isParent: true });
+          }
+        }
+      } catch { /* ignore */ }
+      return lobby;
+    }
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+
 <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_primitives.js">
 (function (global) {
   'use strict';
