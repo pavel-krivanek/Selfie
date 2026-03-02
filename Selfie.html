@@ -993,6 +993,7 @@ this.addSlot(traitsObject, '==', makePrimitiveMethod('==', ['arg']));
       this.addSlot(traitsObject, 'deleteIndexedSlotsFrom:To:', makePrimitiveMethod('indexedDeleteRange', ['from', 'to']));
       this.addSlot(traitsObject, 'indexedAt:', makePrimitiveMethod('indexedAt', ['index']));
       this.addSlot(traitsObject, 'indexedAt:Put:', makePrimitiveMethod('indexedAtPut', ['index', 'value']));
+      this.addSlot(traitsObject, 'indexedSize', makePrimitiveMethod('indexedSize', []));
 this.addSlot(traitsObject, 'setSlot:To:', makePrimitiveMethod('setSlot:To:', ['name', 'value']));
 
 this.addSlot(traitsNumber, '+', makePrimitiveMethod('+', ['arg']));
@@ -1822,6 +1823,12 @@ _tryPrimitiveSend(receiver, selectorName, args) {
           cloned._lexicalParent = receiver._lexicalParent;
         }
         return { handled: true, value: cloned };
+      }
+
+
+      if (selectorName === 'indexedSize' && args.length === 0 && receiver && receiver.slots) {
+        const arr = Array.isArray(receiver.indexedSlots) ? receiver.indexedSlots : [];
+        return { handled: true, value: vm.makeNumber(arr.length) };
       }
 
       if (vm.isNumberObject(receiver)) {
