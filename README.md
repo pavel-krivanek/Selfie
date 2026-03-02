@@ -5,6 +5,12 @@ An educational, browser-based, prototype-oriented “Self-like” environment wi
 
 Selfie is **not** an implementation of the Self programming language. It borrows ideas (prototype objects, slots, blocks, outliners) to explore object model concepts interactively.
 
+# On-line version
+
+[Try it!](https://pavel-krivanek.github.io/selfie)
+
+For the latest version, use the file from this repository.
+
 ## Demo mindset
 
 Selfie is designed for:
