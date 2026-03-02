@@ -941,7 +941,6 @@ html, body {
       this.addSlot(defaultBehavior, 'setSlot:To:', makePrimitiveMethod('setSlot:To:', ['name', 'value']));
       this.addSlot(defaultBehavior, 'addSlot:Type:Parent:', makePrimitiveMethod('addSlot:Type:Parent:', ['name', 'type', 'isParent']));
       this.addSlot(defaultBehavior, 'removeSlot:', makePrimitiveMethod('removeSlot:', ['name']));
-
       // Indexed slots API
       this.addSlot(defaultBehavior, 'addIndexedSlots:', makePrimitiveMethod('indexedAdd', ['count']));
       this.addSlot(defaultBehavior, 'deleteIndexedSlotsFrom:To:', makePrimitiveMethod('indexedDeleteRange', ['from', 'to']));
@@ -1010,6 +1009,16 @@ html, body {
       this.addSlot(globals, 'true', trueObj);
       this.addSlot(globals, 'false', falseObj);
       this.addSlot(globals, 'nil', this.nil);
+
+// js: access to JavaScript evaluation / console
+const jsObj = this.newObject('js');
+jsObj.kind = 'oddball';
+this.addSlot(jsObj, 'parent', traitsOddball, { isParent: true });
+this.addSlot(globals, 'js', jsObj);
+this.jsObj = jsObj;
+
+this.addSlot(jsObj, 'evaluate:', makePrimitiveMethod('evaluate:', ['code']));
+this.addSlot(jsObj, 'log:', makePrimitiveMethod('jsLog:', ['value']));
 
       this.trueObj = trueObj;
       this.falseObj = falseObj;
@@ -1967,7 +1976,41 @@ if (selectorName === 'removeSlot:' && args.length === 1 && receiver && receiver.
         }
       }
 
-      return { handled: false, value: null };
+      
+
+// UI: open an outliner on the receiver
+
+
+// JavaScript bridge (globals.js)
+if (receiver === vm.jsObj) {
+  if (selectorName === 'evaluate:' && args.length === 1) {
+    const a0 = args[0];
+    const code = (a0 && typeof a0 === 'object' && a0.kind === 'string') ? String(a0.jsValue ?? '') : null;
+    if (code == null) throw new VMError('evaluate: expects a string.');
+    try {
+      const r = (0, eval)(code);
+      if (r && typeof r === 'object' && r.slots && typeof r.id === 'number') return { handled: true, value: r };
+      if (r === null || r === undefined) return { handled: true, value: vm.nil };
+      if (typeof r === 'number') return { handled: true, value: vm.makeNumber(r) };
+      if (typeof r === 'string') return { handled: true, value: vm.internString(r) };
+      if (typeof r === 'boolean') return { handled: true, value: vm.booleanOf(r) };
+      return { handled: true, value: vm.internString(String(r)) };
+    } catch (e) {
+      throw new VMError('JS eval error: ' + (e && e.message ? e.message : String(e)));
+    }
+  }
+
+  if (selectorName === 'jsLog:' && args.length === 1) {
+    try {
+      console.log(vm.describeValue(args[0]));
+    } catch {
+      try { console.log(args[0]); } catch {}
+    }
+    return { handled: true, value: receiver };
+  }
+}
+
+return { handled: false, value: null };
     }
   };
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -2705,6 +2748,7 @@ function blockValueSelectorForArity(n) {
       vm.falseObj = vm.getSlotValue(globals, 'false');
       vm.nil = vm.getSlotValue(globals, 'nil');
       vm.outlinerObject = vm.getSlotValue(globals, 'outlinerObject');
+      vm.jsObj = vm.getSlotValue(globals, 'js');
     } catch { /* ignore */ }
     // Ensure lobby has systemContext slot right away so vm.internString works during decoding.
     if (!vm.hasSlot(vm.lobby, 'systemContext')) {
@@ -4709,8 +4753,13 @@ $('#btnToggleLines').addEventListener('click', (ev) => {
 
 })();
 
-  
-
+  // Expose minimal UI hooks for VM primitives (each file runs in its own Function scope).
+  try {
+    globalThis.SelfieUI = globalThis.SelfieUI || {};
+    globalThis.SelfieUI.openOutliner = (obj, pos) => {
+      try { Outliners.open(obj, pos); } catch {}
+    };
+  } catch {}
 </script>
   <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_save.js">
 (function(global){
