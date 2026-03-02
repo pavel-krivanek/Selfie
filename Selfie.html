@@ -1037,6 +1037,25 @@ describeValue(value) {
           });
           continue;
         }
+
+if (op === 'resendFrom') {
+  if (parts.length < 3) throw new VMError(`Missing parent/selector in instruction '${line}'.`);
+  const parentSlotText = parts[1];
+  const selectorText = parts[2];
+  const argc = parts.length >= 4 ? Number(parts[3]) : this._inferArity(selectorText);
+  if (!Number.isInteger(argc) || argc < 0) {
+    throw new VMError(`Invalid arity in instruction '${line}'.`);
+  }
+  instructions.push({
+    op,
+    parentSlot: parentSlotText,
+    selector: this.intern(selectorText),
+    argc,
+    source: line
+  });
+  continue;
+}
+
         throw new VMError(`Unsupported bytecode instruction '${line}'.`);
       }
       return instructions;
@@ -1320,27 +1339,81 @@ _tryPrimitiveSend(receiver, selectorName, args) {
             stack.push(primitiveResult.value);
             break;
           }
-          case 'resend': {
-            // Simple undirected resend: continue lookup from the lexical/message parent of current activation.
-            const receiver = popValue();
-            const args = [];
-            for (let i = 0; i < ins.argc; i++) {
-              args.unshift(popValue());
-            }
-            const parentSlotName = activation.methodTemplate.activationParentSlotName;
-            const parentTarget = this.getSlotValue(activation, parentSlotName);
-            if (!parentTarget) throw new VMError('Cannot resend without an activation parent target.');
-            const selectorName = (typeof ins.selector === 'string') ? ins.selector : (ins.selector && ins.selector.kind === 'string') ? ins.selector.jsValue : ins.selector.name;
-            const found = this._lookupSlot(parentTarget, selectorName);
-            if (!found) throw new VMError(`Resend '${selectorName}' not understood.`);
-            const slotValue = this._resolveSlotValueForSend(found.slot, activation);
-            if (slotValue && slotValue.kind === 'methodTemplate') {
-              stack.push(this.invokeMethod(slotValue, receiver, args, { selectorName, holder: found.holder }));
-            } else {
-              stack.push(slotValue);
-            }
-            break;
-          }
+          
+case 'resend': {
+  // Undirected resend (Self semantics): lookup starts in the *parents of the method holder* (skips the holder's own slots).
+  // Receiver stays the same as the original send.
+  const receiver = popValue();
+  const args = [];
+  for (let i = 0; i < ins.argc; i++) {
+    args.unshift(popValue());
+  }
+
+  const selectorName = (typeof ins.selector === 'string')
+    ? ins.selector
+    : (ins.selector && ins.selector.kind === 'string') ? ins.selector.jsValue : ins.selector.name;
+
+  // If we don't know the holder (e.g. resend used outside a method), fall back to receiver.
+  const holder = activation && activation._holder ? activation._holder : receiver;
+  if (!holder || !holder.slots) throw new VMError('Cannot resend without a holder/receiver.');
+
+  const parentSlots = Object.keys(holder.slots)
+    .map((n) => holder.slots[n])
+    .filter((s) => s && s.isParent && s.value);
+
+  let found = null;
+  for (const ps of parentSlots) {
+    found = this._lookupSlot(ps.value, selectorName);
+    if (found) break;
+  }
+
+  if (!found) {
+    throw new VMError(`Message '${selectorName}' not understood by ${this.describeValue(receiver)}.`);
+  }
+
+  const slotValue = this._resolveSlotValueForSend(found.slot, activation);
+  if (slotValue && slotValue.kind === 'methodTemplate') {
+    stack.push(this.invokeMethod(slotValue, receiver, args, { selectorName, holder: found.holder }));
+  } else {
+    stack.push(slotValue);
+  }
+  break;
+}
+case 'resendFrom': {
+  // Directed resend (Self semantics): start lookup from a specific parent slot on the *method holder*.
+  // Receiver stays the same as the original send.
+  const receiver = popValue();
+  const args = [];
+  for (let i = 0; i < ins.argc; i++) {
+    args.unshift(popValue());
+  }
+
+  const selectorName = (typeof ins.selector === 'string')
+    ? ins.selector
+    : (ins.selector && ins.selector.kind === 'string') ? ins.selector.jsValue : ins.selector.name;
+
+  const parentSlotName = ins.parentSlot;
+  const holder = activation && activation._holder ? activation._holder : receiver;
+  if (!holder || !holder.slots) throw new VMError('Cannot resendFrom without a holder/receiver.');
+
+  const ps = holder.slots[parentSlotName];
+  if (!ps || !ps.isParent || !ps.value) {
+    throw new VMError(`Cannot resendFrom: parent slot '${parentSlotName}' not found on holder.`);
+  }
+
+  const found = this._lookupSlot(ps.value, selectorName);
+  if (!found) {
+    throw new VMError(`Message '${selectorName}' not understood by ${this.describeValue(receiver)}.`);
+  }
+
+  const slotValue = this._resolveSlotValueForSend(found.slot, activation);
+  if (slotValue && slotValue.kind === 'methodTemplate') {
+    stack.push(this.invokeMethod(slotValue, receiver, args, { selectorName, holder: found.holder }));
+  } else {
+    stack.push(slotValue);
+  }
+  break;
+}
           case 'returnTop':
             return popValue();
           default:
@@ -2189,6 +2262,46 @@ function scan(src) {
   <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_parse.js">
 (function(global){
   'use strict';
+/*
+  Grammar (EBNF) used by Selfie parser
+
+  program        ::= statements EOF
+  statements     ::= ( DOT | statement DOT? )*
+  statement      ::= returnStmt | expr
+  returnStmt     ::= '^' expr
+
+  expr           ::= implicitKeywordSend | keywordSend
+  implicitKeywordSend ::= IDENT ':' binary (IDENT ':' binary)*     // implicit receiver = activation
+
+  keywordSend    ::= binary ( (IDENT ':' binary)+ )?
+  binary         ::= unary ( BINOP unary )*
+  unary          ::= primary ( IDENT )*
+
+  primary        ::= resendSend
+                   | NUMBER
+                   | STRING
+                   | IDENT
+                   | '(' expr ')'
+                   | block
+
+  // Self-style resend syntax (dot-based, no whitespace after the dot):
+  //   undirected resend: resend.<message>
+  //   directed resend:   <parentSlot>.<message>
+  // where <message> is unary/binary/keyword message syntax.
+  resendSend     ::= ('resend' | IDENT) '.' resendMessage
+  resendMessage  ::= IDENT                              // unary
+                   | BINOP unary                         // binary
+                   | (IDENT ':' binary)+                 // keyword
+
+  block          ::= '[' blockHeader? sequence ']'
+  blockHeader    ::= ( ':' IDENT )+ '|' tempsDecl?
+  sequence       ::= tempsDecl? statements
+  tempsDecl      ::= '|' IDENT* '|'
+
+  Notes:
+  - Message precedence is: unary > binary > keyword
+  - '.' is a statement terminator. For resendSend, the '.' must be immediately followed by the message (no whitespace).
+*/
   if (!global.SelfScan || typeof global.SelfScan.scan !== 'function') {
     throw new Error('Missing SelfScan.scan. Load selfie_scan.js first.');
   }
@@ -2331,7 +2444,52 @@ class Parser {
       const tok = this.peek();
       if (tok.type === 'NUMBER') { this.next(); return { type: 'Number', text: tok.value }; }
       if (tok.type === 'STRING') { this.next(); return { type: 'String', text: tok.value }; }
-      if (tok.type === 'IDENT') { this.next(); return { type: 'Ident', name: tok.value }; }
+
+// Self-style resend syntax:
+//   resend.<message>           (undirected)
+//   <parentSlot>.<message>     (directed)
+if (tok.type === 'IDENT') {
+  const name = tok.value;
+  // If followed by '.' and a message start, treat as resendSend.
+  if (this.lookahead().type === 'DOT') {
+    const afterDot = this.lookahead(2);
+    if (afterDot.type === 'IDENT' || afterDot.type === 'BINOP') {
+      this.next(); // consume name
+      this.expect('DOT', 'Expected . in resend expression');
+
+      // Parse the message following the dot.
+      let sel = null;
+      const args = [];
+
+      if (this.peek().type === 'BINOP') {
+        sel = this.next().value;
+        args.push(this.parseUnary());
+      } else if (this.peek().type === 'IDENT' && this.lookahead().type === 'COLON') {
+        const parts = [];
+        while (this.peek().type === 'IDENT' && this.lookahead().type === 'COLON') {
+          const key = this.next().value;
+          this.expect('COLON', 'Expected : in keyword message');
+          parts.push(key + ':');
+          args.push(this.parseBinary());
+        }
+        sel = parts.join('');
+      } else if (this.peek().type === 'IDENT') {
+        sel = this.next().value;
+      } else {
+        throw new ParseError('Expected resend message after .', this.peek().pos);
+      }
+
+      if (name === 'resend') return { type: 'ResendSend', parentName: null, sel, args };
+      return { type: 'ResendSend', parentName: name, sel, args };
+    }
+  }
+
+  if (name === 'resend') {
+    throw new ParseError("Expected '.' after 'resend' (use resend.<message>)", tok.pos);
+  }
+  this.next();
+  return { type: 'Ident', name };
+}
 
       if (this.accept('LPAREN')) {
         const e = this.parseExpression();
@@ -2498,11 +2656,21 @@ function blockValueSelectorForArity(n) {
           this.pushIdent(node.name);
           return;
         }
+
+case 'ResendSend': {
+  // Compile args first, then receiver (self), then resend opcode.
+  for (const a of node.args || []) this.compileExpr(a);
+  this.emit('pushSelf');
+  this.emit('send self');
+  const argc = (node.args || []).length;
+  if (node.parentName) this.emit(`resendFrom ${node.parentName} ${node.sel} ${argc}`);
+  else this.emit(`resend ${node.sel} ${argc}`);
+  return;
+}
         case 'Activation': {
           this.emit('pushSelf');
           return;
-        }
-        case 'UnarySend': {
+        }        case 'UnarySend': {
           this.compileExpr(node.recv);
           this.emit(`send ${node.sel}`);
           return;
