@@ -949,6 +949,7 @@ describeValue(value) {
         isParent: false,
         isArgument: false,
         isLiteral: false,
+        isReadWrite: false,
         literalKind: null
       }, opts || {});
       obj.slots[name] = {
@@ -957,6 +958,7 @@ describeValue(value) {
         isParent: !!options.isParent,
         isArgument: !!options.isArgument,
         isLiteral: !!options.isLiteral,
+        isReadWrite: !!options.isReadWrite,
         literalKind: options.literalKind
       };
       return obj;
@@ -1174,6 +1176,20 @@ describeValue(value) {
       const opts = options || {};
 
       const found = this._lookupSlot(receiver, selectorName);
+      if (!found) {
+        // allow RW setter fallback
+      }
+
+      // RW slot setter: if selector ends with ':' and there is a RW slot without ':', assign it.
+      if (!found && selectorName.endsWith(':') && callArgs.length === 1) {
+        const base = selectorName.slice(0, -1);
+        const f2 = this._lookupSlot(receiver, base);
+        if (f2 && f2.slot && f2.slot.isReadWrite) {
+          f2.slot.value = callArgs[0];
+          return callArgs[0];
+        }
+      }
+
       if (!found) {
         throw new VMError(`Message '${selectorName}' not understood by ${this.describeValue(receiver)}.`);
       }
@@ -1704,6 +1720,13 @@ _tryPrimitiveSend(receiver, selectorName, args) {
       vm.addSlot(traitsNumber, '*', makePrimitiveMethod('*', ['arg']));
       vm.addSlot(traitsNumber, '/', makePrimitiveMethod('/', ['arg']));
       vm.addSlot(traitsNumber, 'printString', makePrimitiveMethod('printString', []));
+      vm.addSlot(traitsNumber, '==', makePrimitiveMethod('==', ['arg']));
+      vm.addSlot(traitsNumber, '!=', makePrimitiveMethod('!=', ['arg']));
+      vm.addSlot(traitsNumber, '<', makePrimitiveMethod('<', ['arg']));
+      vm.addSlot(traitsNumber, '<=', makePrimitiveMethod('<=', ['arg']));
+      vm.addSlot(traitsNumber, '>', makePrimitiveMethod('>', ['arg']));
+      vm.addSlot(traitsNumber, '>=', makePrimitiveMethod('>=', ['arg']));
+
 
       // traits.string primitives
       vm.addSlot(traitsString, ',', makePrimitiveMethod(',', ['arg']));
@@ -1780,7 +1803,6 @@ vm.addSlot(jsObj, 'log:', makePrimitiveMethod('jsLog:', ['value']));
     }
   };
 })(typeof window !== 'undefined' ? window : globalThis);
-
 </script>
 
 <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_primitives.js">
@@ -1793,7 +1815,10 @@ vm.addSlot(jsObj, 'log:', makePrimitiveMethod('jsLog:', ['value']));
     tryPrimitiveSend(vm, receiver, selectorName, args) {
       // identity primitive
       if (selectorName === '==' && args.length === 1) {
-        return { handled: true, value: vm.booleanOf(receiver === args[0]) };
+        // For numbers, '==' is numeric equality (handled in the number primitive section below).
+        if (!(receiver && receiver.kind === 'number' && args[0] && args[0].kind === 'number')) {
+          return { handled: true, value: vm.booleanOf(receiver === args[0]) };
+        }
       }
 
       // block evaluation primitive (invoked via traits.block value/value:... methods using primitiveSend)
@@ -1953,6 +1978,14 @@ if (selectorName === 'removeSlot:' && args.length === 1 && receiver && receiver.
             case '-': return { handled: true, value: vm.makeNumber(a - b) };
             case '*': return { handled: true, value: vm.makeNumber(a * b) };
             case '/': return { handled: true, value: vm.makeNumber(a / b) };
+
+            case '==': return { handled: true, value: vm.booleanOf(a === b) };
+            case '!=': return { handled: true, value: vm.booleanOf(a !== b) };
+            case '~=': return { handled: true, value: vm.booleanOf(a !== b) };
+            case '<': return { handled: true, value: vm.booleanOf(a < b) };
+            case '<=': return { handled: true, value: vm.booleanOf(a <= b) };
+            case '>': return { handled: true, value: vm.booleanOf(a > b) };
+            case '>=': return { handled: true, value: vm.booleanOf(a >= b) };
             default: break;
           }
         }
@@ -2078,9 +2111,6 @@ function scan(src) {
       if (c === '.') { add('DOT', '.', i++); continue; }
       if (c === '^') { add('CARET', '^', i++); continue; }
       if (c === '|') { add('BAR', '|', i++); continue; }
-
-      // assignment :=
-      if (c === ':' && s[i + 1] === '=') { add('ASSIGN', ':=', i); i += 2; continue; }
       if (c === ':') { add('COLON', ':', i++); continue; }
 
       // string literal: '...'
@@ -2154,7 +2184,8 @@ function scan(src) {
   global.SelfScan = { scan, ScanError };
 })(typeof window !== 'undefined' ? window : globalThis);
 
-  </script>
+  
+</script>
   <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_parse.js">
 (function(global){
   'use strict';
@@ -2230,20 +2261,29 @@ class Parser {
         return { type: 'Return', expr };
       }
 
-      // assignment: name := expr
-      if (this.peek().type === 'IDENT' && this.lookahead().type === 'ASSIGN') {
-        const name = this.next().value;
-        this.next(); // ASSIGN
-        const expr = this.parseExpression();
-        return { type: 'Assign', name, expr };
-      }
-
       const expr = this.parseExpression();
       return { type: 'Expr', expr };
     }
 
     parseExpression() {
+      // Allow leading keyword send like: a: 10. (implicit receiver = activation)
+      if (this.peek().type === 'IDENT' && this.lookahead().type === 'COLON') {
+        return this.parseImplicitKeyword();
+      }
       return this.parseKeyword();
+    }
+
+    parseImplicitKeyword() {
+      const parts = [];
+      const args = [];
+      while (this.peek().type === 'IDENT' && this.lookahead().type === 'COLON') {
+        const key = this.next().value;
+        this.expect('COLON', 'Expected : in keyword message');
+        parts.push(key + ':');
+        args.push(this.parseBinary());
+      }
+      const selector = parts.join('');
+      return { type: 'KeywordSend', selector, recv: { type: 'Activation' }, args };
     }
 
     // keyword sends have the lowest precedence
@@ -2375,7 +2415,8 @@ function parseHeader(headerText) {
   global.SelfParse = { ParseError, Parser, parseHeader };
 })(typeof window !== 'undefined' ? window : globalThis);
 
-  </script>
+  
+</script>
   <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_compile.js">
 (function(global){
   'use strict';
@@ -2432,29 +2473,11 @@ function blockValueSelectorForArity(n) {
           return;
         }
 
-        if (st.type === 'Assign') {
-          this.compileAssign(st.name, st.expr);
-          if (!isLast) this.emit('pop');
-          continue;
-        }
-
         this.compileExpr(st.expr);
         if (!isLast) this.emit('pop');
       }
 
       this.emit('returnTop');
-    }
-
-    compileAssign(name, rhsExpr) {
-      // Stack convention for 'send': receiver on top; args below it in order.
-      // We implement assignment by sending a primitive to the *activation* object.
-      // Push name string, push rhs value, push activation, send setSlot:To: 2.
-      const nm = this.env.vm.internString(name);
-      const litSlot = this.addLiteral('constant', nm);
-      this.pushLiteralSlot(litSlot);
-      this.compileExpr(rhsExpr);
-      this.emit('pushSelf');
-      this.emit('send setSlot:To: 2');
     }
 
     compileExpr(node) {
@@ -2473,6 +2496,10 @@ function blockValueSelectorForArity(n) {
         }
         case 'Ident': {
           this.pushIdent(node.name);
+          return;
+        }
+        case 'Activation': {
+          this.emit('pushSelf');
           return;
         }
         case 'UnarySend': {
@@ -2510,7 +2537,7 @@ function blockValueSelectorForArity(n) {
           // Install block temps onto the block method template so the activation clone has them.
           for (const t of (node.tempNames || [])) {
             if (!this.env.vm.hasSlot(blockTemplate.blockMethod, t)) {
-              this.env.vm.addSlot(blockTemplate.blockMethod, t, null);
+              this.env.vm.addSlot(blockTemplate.blockMethod, t, this.env.vm.nil, { isReadWrite: true });
             }
           }
 
@@ -3012,7 +3039,7 @@ function openErrorReport(err) {
 ## Source language
 - Literals: numbers, strings, blocks \`[ ... ]\` or \`[:x :y | ... ]\`
 - Messages: unary (\`x size\`), binary (\`x + y\`), keyword (\`obj at: i Put: v\`)
-- Temps: \`| t u |\` and assignment: \`t := expr\`
+- Temps: \`| t u |\` and assignment via setter: \`t: expr\`
 - Return: \`^ expr\`  Statements: \`.\`
 
 ## Bytecode
@@ -3136,7 +3163,7 @@ function openErrorReport(err) {
 
     // temp slots (compiler emits setSlot:To: assignments targeting activation)
     for (const t of (spec.tempNames || [])) {
-      if (!vm.hasSlot(mt, t)) vm.addSlot(mt, t, vm.nil);
+      if (!vm.hasSlot(mt, t)) vm.addSlot(mt, t, vm.nil, { isReadWrite: true });
     }
 
     // install
@@ -3194,10 +3221,14 @@ function openErrorReport(err) {
 
     // --- Numbers ---
     if (traitsNumber2 && traitsNumber2.slots) {
-      // NOTE: this tiny runtime has identity == only; numeric equality is expressed via printString identity
-      // because strings are interned.
+      // Numeric comparisons are provided by primitives on traits.number.
       _installStdMethod(traitsNumber2, 'to: limit Do: blk',
-        '| delta first | delta := limit - self. first := (delta printString) copyFrom: 1 To: 1. (first == '-') ifTrue: [ (self printString == limit printString) ifTrue: [ blk value: self. nil ] False: [ blk value: self. (self - 1) to: limit Do: blk ] ] False: [ (self printString == limit printString) ifTrue: [ blk value: self. nil ] False: [ blk value: self. (self + 1) to: limit Do: blk ] ]'
+        `| nextValue |
+nextValue: self.
+[nextValue <= limit]
+	whileTrue:
+		[blk value: nextValue.
+		nextValue: nextValue + 1]`
       );
     }
   }
@@ -3852,7 +3883,7 @@ remove(srcId, slotName) {
             });
             mt.source = '';
             // temp slots
-            for (const t of (spec.tempNames || [])) { if (!vm.hasSlot(mt, t)) vm.addSlot(mt, t, null); }
+            for (const t of (spec.tempNames || [])) { if (!vm.hasSlot(mt, t)) vm.addSlot(mt, t, vm.nil, { isReadWrite: true }); }
 
             vm.addSlot(v, selector, mt);
             this.render();
@@ -4004,7 +4035,7 @@ remove(srcId, slotName) {
             vm.addSlot(mt, parentSlotName, null, { isParent: true, isArgument: true });
             for (const a of spec.argNames) vm.addSlot(mt, a, null, { isArgument: true });
             for (const t of (spec.tempNames || [])) {
-              if (!vm.hasSlot(mt, t)) vm.addSlot(mt, t, null);
+              if (!vm.hasSlot(mt, t)) vm.addSlot(mt, t, vm.nil, { isReadWrite: true });
             }
             for (const lit of (spec.literals || [])) {
               vm.intern(lit.slotName);
@@ -4084,7 +4115,7 @@ remove(srcId, slotName) {
             });
 
             for (const t of (spec.tempNames || [])) {
-              if (!vm.hasSlot(methodTemplate, t)) vm.addSlot(methodTemplate, t, null);
+              if (!vm.hasSlot(methodTemplate, t)) vm.addSlot(methodTemplate, t, vm.nil, { isReadWrite: true });
             }
 
 
