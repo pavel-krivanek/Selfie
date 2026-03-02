@@ -2162,7 +2162,7 @@ function scan(src) {
     // NOTE: exclude ':' and '|' which are structural tokens in this tiny language.
     const isBinOpChar = (c) => "+-*/=<>~&,@%".includes(c);
 
-    const add = (type, value, pos) => tokens.push({ type, value, pos });
+    const add = (type, value, pos, extra) => tokens.push(Object.assign({ type, value, pos }, extra || {}));
 
     while (i < s.length) {
       const c = s[i];
@@ -2181,7 +2181,14 @@ function scan(src) {
       if (c === ')') { add('RPAREN', ')', i++); continue; }
       if (c === '[') { add('LBRACK', '[', i++); continue; }
       if (c === ']') { add('RBRACK', ']', i++); continue; }
-      if (c === '.') { add('DOT', '.', i++); continue; }
+      if (c === '.') {
+        // '.' is both a statement terminator and (when *tight*) the resend operator.
+        // Tight means: no whitespace after the dot (and not immediately starting a // comment).
+        const n1 = s[i + 1];
+        const tight = (n1 !== undefined) && (!isWS(n1)) && !(n1 === '/' && s[i + 2] === '/');
+        add('DOT', '.', i++, { tight });
+        continue;
+      }
       if (c === '^') { add('CARET', '^', i++); continue; }
       if (c === '|') { add('BAR', '|', i++); continue; }
       if (c === ':') { add('COLON', ':', i++); continue; }
@@ -2450,8 +2457,10 @@ class Parser {
 //   <parentSlot>.<message>     (directed)
 if (tok.type === 'IDENT') {
   const name = tok.value;
-  // If followed by '.' and a message start, treat as resendSend.
-  if (this.lookahead().type === 'DOT') {
+  // If followed by a *tight* '.' and a message start, treat as resendSend.
+  // Tight means: no whitespace after the dot. (Scanner sets DOT.tight accordingly.)
+  const dotTok = this.lookahead();
+  if (dotTok.type === 'DOT' && dotTok.tight) {
     const afterDot = this.lookahead(2);
     if (afterDot.type === 'IDENT' || afterDot.type === 'BINOP') {
       this.next(); // consume name
