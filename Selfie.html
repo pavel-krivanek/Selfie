@@ -2575,6 +2575,17 @@ function parseHeader(headerText) {
 
   
 </script>
+<script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_help.js">
+(function (global) {
+  'use strict';
+
+  global.SelfieHelp = {
+    markdown: "# Selfie \u2014 Help\n\n## Windows\n- Drag header to move; resize from bottom-right.\n- Click a window to focus (bring to front).\n\n## References and lines\n- Click the \\`::\\` handle to open the referenced object and toggle its line.\n- Drag the \\`::\\` handle to retarget (drop on an object header/value).\n- Shift-click \\`::\\` on a block literal opens the literal *template* instead of the instantiated closure.\n- Toolbar: **Hide lines** toggles all lines.\n\n## Editing slot values\n- Numbers: \\`42\\`  | Names: \\`#foo\\`  | Object refs: \\`@3\\`  | Strings: \\`'text'\\`  | empty \u21d2 \\`null\\`\n\n## Source language\n- Literals: numbers, strings, blocks \\`[ ... ]\\` or \\`[:x :y | ... ]\\`\n- Messages: unary (\\`x size\\`), binary (\\`x + y\\`), keyword (\\`obj at: i Put: v\\`)\n- Temps: \\`| t u |\\` and assignment via setter: \\`t: expr\\`\n- Return: \\`^ expr\\`  Statements: \\`.\\`\n\n## Bytecode\n- \\`pushSelf\\` | \\`send <selector> [argc]\\` | \\`resend <selector> [argc]\\` | \\`primitiveSend <selector> [argc]\\` | \\`dup\\` | \\`pop\\` | \\`returnTop\\`\n\n## Slot controls\n- Use the \\`\u25be/\u25b4\\` toggle to show/hide slot flags and delete.\n\n\n---\n\n## Language summary\n\nSelfie is a small Self-like message language:\n\n- **Everything is a message send**. There are no special assignment operators.\n- **Temporaries are RW slots** on the activation; assignment is sending the setter message:\n  - `| a |` declares RW temp slot `a`\n  - `a: 10.` assigns (setter send)\n- **Return** uses `^ expr`.\n\n### Message syntax\n\n- **Unary**: `x printString`\n- **Binary**: `x + 1`, `resend.+ 5`\n- **Keyword**: `x min: 17 Max: 23`\n\n### Blocks\n\n- Literal block: `[ ... ]`\n- Arguments: `[ :x :y | ... ]`\n- Execute via `value`, `value:`, `value:With:` \u2026\n- Control blocks available on blocks:\n  - `whileTrue`, `whileTrue:`, `whileFalse`, `whileFalse:`, `repeat`\n\n### Resend\n\nSelfie supports Self-style resend forms:\n\n- **Undirected resend** (continue lookup in the *holder\u2019s* parents):\n  - `resend.display`\n  - `resend.+ 5`\n  - `resend.min: 17 Max: 23`\n\n- **Directed resend** (start from a specific parent slot):\n  - `listParent.height`\n  - `intParent.min: 17 Max: 23`\n\n**Disambiguation rule:**\n- `a.b` (no whitespace after the dot) is parsed as directed resend.\n- `a. b` is parsed as two statements (`a.` then `b`).\n\n---\n\n## Grammar (EBNF)\n\nThis is the grammar used by the parser (simplified, but matches the implementation):\n\n```ebnf\nProgram        ::= Stmt ('.' Stmt)* '.'?\nStmt           ::= Return | Expr\nReturn         ::= '^' Expr\n\nExpr           ::= KeywordChain\nKeywordChain   ::= BinaryChain (KeywordMsg BinaryChain)+ | BinaryChain\nKeywordMsg     ::= KeywordPart (KeywordPart)*\nKeywordPart    ::= Ident ':'\n\nBinaryChain    ::= UnaryChain (BinaryOp UnaryChain)*\nUnaryChain     ::= Primary (UnaryMsg | ResendMsg)*\nUnaryMsg       ::= Ident\n\nResendMsg      ::= UndirectedResend | DirectedResend\nUndirectedResend ::= 'resend' '.' (Ident | BinaryOp | KeywordHead)\nDirectedResend ::= ParentSlot '.' (Ident | BinaryOp | KeywordHead)\nKeywordHead    ::= Ident ':'\nParentSlot     ::= Ident\n\nPrimary        ::= Number | String | Name | Ref | Block | Paren | Ident\nParen          ::= '(' Expr ')'\nBlock          ::= '[' BlockArgs? BlockTemps? Program? ']'\nBlockArgs      ::= (':' Ident)+ '|'\nBlockTemps     ::= '|' Ident* '|'\n\nName           ::= '#' Ident\nString         ::= '\\'' ( ... ) '\\''\nRef            ::= '@' Number\nNumber         ::= Digit+ ('.' Digit+)?\nBinaryOp       ::= one-or-more of: + - * / < <= > >= == ~= != ,\nIdent          ::= [A-Za-z_][A-Za-z0-9_]*\n```\n\nNotes:\n- `| a b |` declares RW temporaries on the activation.\n- `a:` is the setter message for RW slot `a`.\n\n---\n\n## Object model notes\n\n- **Parent slots** (marked with `*`) participate in lookup delegation.\n- **Indexed slots** are ignored by lookup and are addressed by 1-based index in the UI.\n- Boolean results are Selfie objects `true`/`false` (not JS booleans).\n\n---\n\n## VM / File view\n\n- **Image view** is the floating outliner desktop.\n- **VM view** lets you edit the embedded files (scripts/styles) that make up the current system.\n- **Save system** writes a single self-contained HTML (TiddlyWiki-like).\n- **Save image** writes a `.selfieImage` JSON snapshot.\n\n---\n\n## JS bridge\n\nGlobal `js` object:\n- `js evaluate: '...js code...'` evaluates JavaScript and returns a Selfie value when possible.\n- `js log: x` writes to the browser console."
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+
   <script type="application/x-selfie-script" data-selfie-file="true" data-name="selfie_compile.js">
 (function(global){
   'use strict';
@@ -3189,33 +3200,9 @@ function openErrorReport(err) {
 
 
   function showHelp() {
-    const md = `# Selfie — Help
+    const md = (globalThis.SelfieHelp && globalThis.SelfieHelp.markdown) ? globalThis.SelfieHelp.markdown : `# Selfie — Help
 
-## Windows
-- Drag header to move; resize from bottom-right.
-- Click a window to focus (bring to front).
-
-## References and lines
-- Click the \`::\` handle to open the referenced object and toggle its line.
-- Drag the \`::\` handle to retarget (drop on an object header/value).
-- Shift-click \`::\` on a block literal opens the literal *template* instead of the instantiated closure.
-- Toolbar: **Hide lines** toggles all lines.
-
-## Editing slot values
-- Numbers: \`42\`  | Names: \`#foo\`  | Object refs: \`@3\`  | Strings: \`'text'\`  | empty ⇒ \`null\`
-
-## Source language
-- Literals: numbers, strings, blocks \`[ ... ]\` or \`[:x :y | ... ]\`
-- Messages: unary (\`x size\`), binary (\`x + y\`), keyword (\`obj at: i Put: v\`)
-- Temps: \`| t u |\` and assignment via setter: \`t: expr\`
-- Return: \`^ expr\`  Statements: \`.\`
-
-## Bytecode
-- \`pushSelf\` | \`send <selector> [argc]\` | \`resend <selector> [argc]\` | \`primitiveSend <selector> [argc]\` | \`dup\` | \`pop\` | \`returnTop\`
-
-## Slot controls
-- Use the \`▾/▴\` toggle to show/hide slot flags and delete.
-`;
+(Help text missing: selfie_help.js)`;
 
     const helpDoc = { kind: 'helpDoc', label: 'Help', markdown: md };
     Outliners.open(helpDoc, { x: 70, y: 90 });
