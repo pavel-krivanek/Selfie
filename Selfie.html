@@ -855,20 +855,18 @@ html, body {
       const lobby = this.newObject('lobby');
       const globals = this.newObject('globals');
       const traits = this.newObject('traits');
-      const mixins = this.newObject('mixins');
       const defaultBehavior = this.newObject('defaultBehavior');
       const systemContext = this._systemContext;
 
       // lobby
       this.addSlot(lobby, 'globals', globals, { isParent: true });
       this.addSlot(lobby, 'traits', traits);
-      this.addSlot(lobby, 'mixins', mixins);
       this.addSlot(lobby, 'defaultBehavior', defaultBehavior);
-      this.addSlot(lobby, 'lobby', lobby);
       this.addSlot(lobby, 'systemContext', systemContext);
+      this.addSlot(globals, 'lobby', lobby);
 
       // defaultBehavior should see lobby/globals so global names (true/false/nil) work inside all methods.
-      this.addSlot(defaultBehavior, 'parent', lobby, { isParent: true });
+      this.addSlot(defaultBehavior, 'parent', globals, { isParent: true });
 
       // traits namespace
       const traitsClonable = this.newObject('traits.clonable');
@@ -888,7 +886,10 @@ html, body {
       // parent chain
       this.addSlot(traitsClonable, 'parent', defaultBehavior, { isParent: true });
       this.addSlot(traitsOddball, 'parent', defaultBehavior, { isParent: true });
-      this.addSlot(traitsOrderedOddball, 'parent', traitsClonable, { isParent: true });
+
+      // lobby should behave like an oddball while still delegating to globals
+      this.addSlot(lobby, 'oddball', traitsOddball, { isParent: true });
+      this.addSlot(traitsOrderedOddball, 'parent', traitsOddball, { isParent: true });
       this.addSlot(traitsNumber, 'parent', traitsOrderedOddball, { isParent: true });
       this.addSlot(traitsString, 'parent', traitsClonable, { isParent: true });
       this.addSlot(traitsBlock, 'parent', traitsClonable, { isParent: true });
