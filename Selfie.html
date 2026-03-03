@@ -852,11 +852,89 @@ html, body {
     }
   }
 
+  class ObjectStore {
+    constructor() {
+      this.kind = (typeof WeakRef !== 'undefined') ? 'weak' : 'strong';
+      // In weak mode: id -> WeakRef(object)
+      // In strong mode: id -> object and a Set for iteration.
+      this._byId = new Map();
+      this._strong = (this.kind === 'strong') ? new Set() : null;
+
+      // Auto-cleanup for weak mode, when supported.
+      this._finalizer = null;
+      if (this.kind === 'weak' && typeof FinalizationRegistry !== 'undefined') {
+        this._finalizer = new FinalizationRegistry((id) => {
+          try { this._byId.delete(id); } catch { /* ignore */ }
+        });
+      }
+    }
+
+    reset() {
+      this._byId.clear();
+      if (this._strong) this._strong.clear();
+      // NOTE: FinalizationRegistry cannot be reset reliably; leaving it is fine.
+    }
+
+    add(obj) {
+      if (!obj || typeof obj !== 'object') return;
+      const id = obj.id;
+      if (typeof id !== 'number') return;
+
+      if (this.kind === 'strong') {
+        this._strong.add(obj);
+        this._byId.set(id, obj);
+        return;
+      }
+
+      // weak
+      try {
+        this._byId.set(id, new WeakRef(obj));
+        if (this._finalizer) this._finalizer.register(obj, id);
+      } catch {
+        // If WeakRef construction fails for any reason, fall back to strong tracking.
+        this.kind = 'strong';
+        this._strong = new Set();
+        this._strong.add(obj);
+        this._byId.set(id, obj);
+      }
+    }
+
+    getById(id) {
+      const n = Number(id);
+      if (!Number.isFinite(n)) return null;
+
+      if (this.kind === 'strong') return this._byId.get(n) || null;
+
+      const ref = this._byId.get(n);
+      if (!ref) return null;
+      const obj = ref.deref();
+      if (!obj) this._byId.delete(n);
+      return obj || null;
+    }
+
+    *[Symbol.iterator]() {
+      if (this.kind === 'strong') {
+        yield* this._strong;
+        return;
+      }
+      for (const [id, ref] of this._byId.entries()) {
+        const obj = ref && typeof ref.deref === 'function' ? ref.deref() : null;
+        if (obj) yield obj;
+        else this._byId.delete(id);
+      }
+    }
+
+    // Not exact in weak mode, but useful for diagnostics.
+    sizeEstimate() {
+      return this._byId.size;
+    }
+  }
+
   class SelfLikeVM {
     constructor() {
       this._nextId = 1;
       this._nextIndexedId = 1;
-      this.objects = new Set();
+      this.objects = new ObjectStore();
       this._systemContext = {
         kind: 'systemContext',
         stringTable: new Map(),
@@ -3004,7 +3082,7 @@ case 'ResendSend': {
   }
 
   function materializeInto(vm, vmData) {
-    vm.objects = new Set();
+    vm.objects.reset();
     vm._nextId = 1;
 
     const idToObj = new Map();
@@ -3311,6 +3389,15 @@ function openErrorReport(err) {
   function findObjectById(id) {
     const n = Number(id);
     if (!Number.isFinite(n)) return null;
+
+    // Prefer indexed lookup if the VM provides it (avoids iterating every object).
+    try {
+      if (vm.objects && typeof vm.objects.getById === 'function') {
+        const hit = vm.objects.getById(n);
+        if (hit) return hit;
+      }
+    } catch { /* ignore */ }
+
     for (const obj of vm.objects) if (obj && obj.id === n) return obj;
     return null;
   }
@@ -3809,6 +3896,24 @@ ok: (js evaluate: '(() => { const vm = SelfieRuntime.vm; const globals = vm.getS
 ^ self report: 'testPrimitiveErrorCases' Passed: ok`
       );
 
+      _installStdMethod(traitsSimpleTestSuite2, 'testObjectStoreNotStrongSet',
+        `| ok |
+ok: (js evaluate: '(() => { const vm = SelfieRuntime.vm; return !(vm.objects instanceof Set); })()').
+^ self report: 'testObjectStoreNotStrongSet' Passed: ok`
+      );
+
+      _installStdMethod(traitsSimpleTestSuite2, 'testObjectStoreWeakWhenSupported',
+        `| ok |
+ok: (js evaluate: '(() => { const vm = SelfieRuntime.vm; if (typeof WeakRef === "undefined") return true; return vm.objects && (vm.objects.kind === "weak"); })()').
+^ self report: 'testObjectStoreWeakWhenSupported' Passed: ok`
+      );
+
+      _installStdMethod(traitsSimpleTestSuite2, 'testObjectStoreGetById',
+        `| ok |
+ok: (js evaluate: '(() => { const vm = SelfieRuntime.vm; if (!vm.objects || typeof vm.objects.getById !== "function") return false; const o = vm.newObject("tmpForIdLookup"); const id = o.id; const found = vm.objects.getById(id); return found === o; })()').
+^ self report: 'testObjectStoreGetById' Passed: ok`
+      );
+
 _installStdMethod(traitsSimpleTestSuite2, 'runTests',
         `| ok |
 ok: true.
@@ -3831,6 +3936,9 @@ ok: (ok and: [ self testBlockCloneKeepsLexicalParent ]).
 ok: (ok and: [ self testNonLocalReturn ]).
 ok: (ok and: [ self testEscapingBlockNLRContextExpired ]).
 ok: (ok and: [ self testPrimitiveErrorCases ]).
+ok: (ok and: [ self testObjectStoreNotStrongSet ]).
+ok: (ok and: [ self testObjectStoreWeakWhenSupported ]).
+ok: (ok and: [ self testObjectStoreGetById ]).
 ok: (ok and: [ self testScannerBinarySelectorChars ]).
 ok: (ok and: [ self testSlotPrimitives ]).
 ok: (ok and: [ self testCloneShallow ]).
