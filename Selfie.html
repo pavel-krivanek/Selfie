@@ -2351,11 +2351,10 @@ function scan(src) {
         continue;
       }
 
-      // number
-      if (isDigit(c) || ((c === '+' || c === '-') && isDigit(s[i + 1]))) {
+      // number (unsigned; unary + / - is handled by the parser)
+      if (isDigit(c)) {
         const start = i;
         let j = i;
-        if (s[j] === '+' || s[j] === '-') j++;
         while (j < s.length && isDigit(s[j])) j++;
         if (s[j] === '.') {
           let k = j + 1;
@@ -2422,7 +2421,7 @@ function scan(src) {
 
   keywordSend    ::= binary ( (IDENT ':' binary)+ )?
   binary         ::= unary ( BINOP unary )*
-  unary          ::= primary ( IDENT )*
+  unary          ::= (('+' | '-') unary)? primary ( IDENT )*
 
   primary        ::= resendSend
                    | NUMBER
@@ -2579,6 +2578,13 @@ class Parser {
     }
 
     parseUnary() {
+      // prefix unary + / - (right-associative; binds tighter than binary messages)
+      if (this.peek().type === 'BINOP' && (this.peek().value === '+' || this.peek().value === '-')) {
+        const op = this.next().value;
+        const expr = this.parseUnary();
+        return { type: 'UnaryPrefix', op, expr };
+      }
+
       let node = this.parsePrimary();
       while (this.peek().type === 'IDENT' && this.lookahead().type !== 'COLON') {
         const sel = this.next().value;
@@ -2972,6 +2978,22 @@ case 'ResendSend': {
           this.compileExpr(node.recv);
           this.emit(`send ${node.sel}`);
           return;
+        }
+        case 'UnaryPrefix': {
+          if (node.op === '+') {
+            this.compileExpr(node.expr);
+            return;
+          }
+          if (node.op === '-') {
+            // Compile as: 0 - expr  (arg first, receiver last)
+            this.compileExpr(node.expr);
+            const zero = this.env.vm.makeNumber(0);
+            const slot = this.addLiteral('constant', zero);
+            this.pushLiteralSlot(slot);
+            this.emit('send - 1');
+            return;
+          }
+          throw new Error(`Unsupported unary prefix '${node.op}'`);
         }
         case 'BinarySend': {
           this.compileExpr(node.arg);
@@ -3728,7 +3750,9 @@ ok: (ok and: [ (1 != 1) not ]).
         `| ok |
 ok: true.
 ok: (ok and: [ (1 + 2) == 3 ]).
+ok: (ok and: [ (1+2) == 3 ]).
 ok: (ok and: [ (7 - 4) == 3 ]).
+ok: (ok and: [ (7-4) == 3 ]).
 ok: (ok and: [ (3 * 4) == 12 ]).
 ok: (ok and: [ (8 / 2) == 4 ]).
 ok: (ok and: [ (5 < 6) ]).
