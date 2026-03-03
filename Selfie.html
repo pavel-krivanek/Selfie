@@ -3568,6 +3568,44 @@ ok: (inner value: 5) == 12.
 ^ self report: 'testNestedClosures' Passed: ok`
       );
 
+      _installStdMethod(traitsSimpleTestSuite2, 'makeLexBlock: n',
+        `| b |
+b: [ n ].
+^ b`
+      );
+
+      _installStdMethod(traitsSimpleTestSuite2, 'testLexicalParentDelegationUnary',
+        `| x b ok |
+x: 7.
+b: [ x ].
+ok: ((b x) == 7).
+^ self report: 'testLexicalParentDelegationUnary' Passed: ok`
+      );
+
+      _installStdMethod(traitsSimpleTestSuite2, 'testLexicalParentDelegationSetter',
+        `| x b ok |
+x: 1.
+b: [ 0 ].
+b x: 9.
+ok: (x == 9).
+^ self report: 'testLexicalParentDelegationSetter' Passed: ok`
+      );
+
+      _installStdMethod(traitsSimpleTestSuite2, 'testLexicalParentDelegationArgCapture',
+        `| ok b |
+b: (self makeLexBlock: 17).
+ok: ((b n) == 17).
+^ self report: 'testLexicalParentDelegationArgCapture' Passed: ok`
+      );
+
+      _installStdMethod(traitsSimpleTestSuite2, 'testLexicalParentDelegationSelf',
+        `| b ok |
+b: [ self ].
+ok: ((b self) == self).
+^ self report: 'testLexicalParentDelegationSelf' Passed: ok`
+      );
+
+
       _installStdMethod(traitsSimpleTestSuite2, 'testSlotPrimitives',
         `| obj parentObj ok |
 obj: outlinerObject clone.
@@ -3675,6 +3713,10 @@ ok: (ok and: [ self testBlockValuePrimitives ]).
 ok: (ok and: [ self testControlBlocks ]).
 ok: (ok and: [ self testToDoLoop ]).
 ok: (ok and: [ self testNestedClosures ]).
+ok: (ok and: [ self testLexicalParentDelegationUnary ]).
+ok: (ok and: [ self testLexicalParentDelegationSetter ]).
+ok: (ok and: [ self testLexicalParentDelegationArgCapture ]).
+ok: (ok and: [ self testLexicalParentDelegationSelf ]).
 ok: (ok and: [ self testNonLocalReturn ]).
 ok: (ok and: [ self testStringBackslashEscapes ]).
 ok: (ok and: [ self testScannerBinarySelectorChars ]).
