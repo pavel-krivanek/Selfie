@@ -3171,9 +3171,56 @@ case 'ResendSend': {
     const objects = [];
     let maxId = 0;
     let maxIndexedId = 0;
+
+    // Persist activation objects only if they are reachable from the persistent heap
+    // (e.g. stored block closures capturing their lexical parent context).
+    const byId = new Map();
+    for (const o of vm.objects) {
+      if (o && typeof o === 'object' && typeof o.id === 'number') byId.set(o.id, o);
+    }
+
+    const keepActivations = new Set();
+
+    const noteActivationRefs = (containerObj) => {
+      if (!containerObj || typeof containerObj !== 'object') return;
+      const slotNames = containerObj.slots ? Object.keys(containerObj.slots) : [];
+      for (const name of slotNames) {
+        const s = containerObj.slots[name];
+        if (!s) continue;
+        const v = s.value;
+        if (isVmObject(v) && v.kind === 'activation') keepActivations.add(v.id);
+      }
+      if (Array.isArray(containerObj.indexedSlots)) {
+        for (const e of containerObj.indexedSlots) {
+          const v = e && e.value;
+          if (isVmObject(v) && v.kind === 'activation') keepActivations.add(v.id);
+        }
+      }
+    };
+
+    // Seed from all non-activation objects.
+    for (const o of vm.objects) {
+      if (!o || typeof o !== 'object') continue;
+      if (o.kind === 'activation') continue;
+      noteActivationRefs(o);
+    }
+
+    // Closure lexical chains can point to activations that point to other activations (nested blocks).
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const id of Array.from(keepActivations)) {
+        const act = byId.get(id);
+        if (!act) continue;
+        const before = keepActivations.size;
+        noteActivationRefs(act);
+        if (keepActivations.size !== before) changed = true;
+      }
+    }
+
     for (const obj of vm.objects) {
       if (!obj || typeof obj !== 'object') continue;
-      if (obj.kind === 'activation') continue; // ephemeral
+      if (obj.kind === 'activation' && !keepActivations.has(obj.id)) continue;
       maxId = Math.max(maxId, obj.id || 0);
 
       const rec = {
@@ -3342,6 +3389,22 @@ for (const o of vm.objects) {
   }
   if (Array.isArray(o.indexedSlots)) {
     for (const e of o.indexedSlots) e.value = rewrite(e.value);
+  }
+}
+
+
+
+// Restore non-slot runtime pointers for persisted closures/contexts.
+for (const o of vm.objects) {
+  if (!o || typeof o !== 'object') continue;
+  if (o.kind === 'activation') {
+    // Persisted activations are never "live" after reload.
+    // This makes non-local returns raise ContextExpired instead of escaping into nowhere.
+    o._isLive = false;
+  }
+  if (o.kind === 'blockInstance') {
+    const lpSlot = o.slots ? o.slots['(lexicalParent)'] : null;
+    o._lexicalParent = lpSlot ? lpSlot.value : null;
   }
 }
 
