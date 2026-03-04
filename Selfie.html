@@ -4801,7 +4801,8 @@ remove(srcId, slotName) {
         const dx = ev.clientX - startX;
         const dy = ev.clientY - startY;
         this.root.style.left = `${Math.max(-20, startLeft + dx)}px`;
-        this.root.style.top = `${Math.max(40, startTop + dy)}px`;
+        // Allow windows to reach the workspace top (flush under the toolbar).
+        this.root.style.top = `${Math.max(0, startTop + dy)}px`;
         Links.schedule();
       };
 
