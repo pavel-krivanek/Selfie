@@ -3747,6 +3747,14 @@ function openErrorReport(err) {
     }
   }
 
+  function formatSlotValue(value) {
+    if (value === vm.nil) return 'nil';
+    if (value === vm.trueObj) return 'true';
+    if (value === vm.falseObj) return 'false';
+    if (value === vm.lobby) return 'lobby';
+    return safeDescribe(value);
+  }
+
   function findObjectById(id) {
     const n = Number(id);
     if (!Number.isFinite(n)) return null;
@@ -3783,6 +3791,7 @@ function openErrorReport(err) {
     if (raw === 'nil') return { ok: true, value: vm.nil };
     if (raw === 'true') return { ok: true, value: vm.trueObj };
     if (raw === 'false') return { ok: true, value: vm.falseObj };
+    if (raw === 'lobby') return { ok: true, value: vm.lobby };
     if (raw === 'undefined') return { ok: true, value: undefined };
 
     if (raw.startsWith('#') && raw.length > 1 && !/^#\d+$/.test(raw)) {
@@ -5327,7 +5336,7 @@ remove(srcId, slotName) {
       const nameEl = el('div', { class: 'slotName', contenteditable: 'false' }, String(displayIndex));
 
       const valueWrap = el('div', { class: 'slotValue' });
-      const valueChip = el('div', { class: 'slotValueChip', contenteditable: 'true', spellcheck: 'false' }, safeDescribe(curValue));
+      const valueChip = el('div', { class: 'slotValueChip', contenteditable: 'true', spellcheck: 'false' }, formatSlotValue(curValue));
 
       valueChip.addEventListener('keydown', (ev) => {
         if (ev.key === 'Enter') { ev.preventDefault(); valueChip.blur(); }
@@ -5335,10 +5344,10 @@ remove(srcId, slotName) {
 
       valueChip.addEventListener('blur', () => {
         const parsed = parseValueText(valueChip.textContent);
-        if (!parsed.ok) { toast(parsed.error, 'error'); valueChip.textContent = safeDescribe(curValue); return; }
+        if (!parsed.ok) { toast(parsed.error, 'error'); valueChip.textContent = formatSlotValue(curValue); return; }
         vm._tryPrimitiveSend(holderObj, 'indexedAtPut', [vm.makeNumber(displayIndex), parsed.value]);
         if (entry && typeof entry === 'object' && 'value' in entry) entry.value = parsed.value;
-        valueChip.textContent = safeDescribe(parsed.value);
+        valueChip.textContent = formatSlotValue(parsed.value);
         if (parsed.value && typeof parsed.value === 'object' && typeof parsed.value.id === 'number') Links.setTarget(holderObj.id, stableKey, parsed.value.id);
         else Links.setTarget(holderObj.id, stableKey, NaN);
         Links.schedule();
@@ -5457,7 +5466,7 @@ _renderSlotRow(holderObj, slot) {
       });
 
       const valueWrap = el('div', { class: 'slotValue' });
-      const valueChip = el('div', { class: 'slotValueChip', contenteditable: 'true', spellcheck: 'false' }, safeDescribe(slot.value));
+      const valueChip = el('div', { class: 'slotValueChip', contenteditable: 'true', spellcheck: 'false' }, formatSlotValue(slot.value));
 
       valueChip.addEventListener('keydown', (ev) => {
         if (ev.key === 'Enter') { ev.preventDefault(); valueChip.blur(); }
@@ -5467,11 +5476,11 @@ _renderSlotRow(holderObj, slot) {
         const parsed = parseValueText(valueChip.textContent);
         if (!parsed.ok) {
           toast(parsed.error, 'error');
-          valueChip.textContent = safeDescribe(slot.value);
+          valueChip.textContent = formatSlotValue(slot.value);
           return;
         }
         slot.value = parsed.value;
-        valueChip.textContent = safeDescribe(slot.value);
+        valueChip.textContent = formatSlotValue(slot.value);
         if (slot.value && typeof slot.value === 'object' && typeof slot.value.id === 'number') {
           Links.setTarget(holderObj.id, slotName, slot.value.id);
         } else {
@@ -5499,7 +5508,7 @@ _renderSlotRow(holderObj, slot) {
         if (obj) {
           ev.preventDefault();
           slot.value = obj;
-          valueChip.textContent = safeDescribe(slot.value);
+          valueChip.textContent = formatSlotValue(slot.value);
           Links.setTarget(holderObj.id, slotName, obj.id);
           Links.setVisible(holderObj.id, slotName, true);
           Links.schedule();
