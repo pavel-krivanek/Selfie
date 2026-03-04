@@ -2568,8 +2568,11 @@ class Parser {
 
     parseBinary() {
       let left = this.parseUnary();
-      while (this.peek().type === 'BINOP') {
-        const op = this.next().value;
+      // In Self, '|' is a valid binary selector character, but this lexer
+      // tokenizes it as BAR to support temp declarations like: | x y |
+      // Allow BAR to act as a binary operator token in expression context.
+      while (this.peek().type === 'BINOP' || this.peek().type === 'BAR') {
+        const op = this.next().value; // BINOP value or '|' for BAR
         const right = this.parseUnary();
         left = { type: 'BinarySend', op, recv: left, arg: right };
       }
