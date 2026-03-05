@@ -4668,6 +4668,14 @@ remove(srcId, slotName) {
       win.root.remove();
       if (Links.focusKey === key) Links.setFocus(null);
       Links.schedule();
+    },
+
+    refresh(value) {
+      const key = identityKey(value);
+      const win = this.windows.get(key);
+      if (!win) return null;
+      win.render();
+      return win;
     }
   };
 
@@ -5888,6 +5896,7 @@ $('#btnToggleLines').addEventListener('click', (ev) => {
     Outliners.windows.clear();
     for (const e of Links.entries.values()) {
       try { e.path.remove(); } catch {}
+      try { if (e.circle) e.circle.remove(); } catch {}
     }
     Links.entries.clear();
     Links.hiddenAll = false;
