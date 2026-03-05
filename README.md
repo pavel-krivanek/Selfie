@@ -5,13 +5,21 @@ An educational, browser-based, prototype-oriented “Self-like” environment wi
 
 Selfie is **not** an implementation of the Self programming language. It borrows ideas (prototype objects, slots, blocks, outliners) to explore object model concepts interactively.
 
-# On-line version
+## On-line version
 
 [Try it!](https://pavel-krivanek.github.io/selfie)
 
 For the latest version, use the file from this repository.
 
-## Demo mindset
+## Implementation basis
+
+The object model and execution ideas are based on the article:
+
+[https://github.com/pavel-krivanek/articles/tree/master/SelfObjectModel](https://github.com/pavel-krivanek/articles/tree/master/SelfObjectModel)
+
+Selfie adapts these concepts into a compact JavaScript implementation and visual outliner UI.
+
+## Goals
 
 Selfie is designed for:
 - experimenting with a **prototype object model**
@@ -20,6 +28,27 @@ Selfie is designed for:
 - editing the system live, then **saving it as one HTML file** you can reopen later
 
 ---
+
+## What is Self
+
+**Self** is a prototype-based, dynamically typed object-oriented **language, live environment, and virtual machine**, originally developed in the mid-1980s by **David Ungar** and **Randall B. Smith**. It explored a very small object model built from **objects with slots** (holding data or methods), **message sending**, and **delegation through parent slots**. Self also introduced a highly interactive programming environment where programmers manipulate objects directly using graphical **outliners**.
+
+- https://www.selflanguage.org/
+- https://handbook.selflanguage.org/
+
+Self had significant influence in two main areas.
+
+**Language design.**  
+It popularized the idea of **prototype-based object-oriented programming**, where objects inherit behavior from other objects instead of classes. This model later became widely known through languages such as JavaScript.
+
+- https://bibliography.selflanguage.org/_static/self-power.pdf
+
+**Virtual machine research.**  
+The Self project developed several important techniques for making dynamic languages fast, including **polymorphic inline caches** and other runtime feedback mechanisms that influenced many modern language VMs.
+
+- https://bibliography.selflanguage.org/_static/pics.pdf
+
+--- 
 
 ## Single-file “wiki-style” saving
 
@@ -94,16 +123,6 @@ returnTop
 
 ---
 
-## Implementation basis
-
-The object model and execution ideas are based on the article:
-
-[https://github.com/pavel-krivanek/articles/tree/master/SelfObjectModel](https://github.com/pavel-krivanek/articles/tree/master/SelfObjectModel)
-
-Selfie adapts these concepts into a compact JavaScript implementation and visual outliner UI.
-
----
-
 ## Important: Selfie is not Self
 
 Selfie is intentionally small and educational. It differs from Self in many serious ways. A few examples:
@@ -116,24 +135,6 @@ Selfie is intentionally small and educational. It differs from Self in many seri
 * **Object model is a teaching model** — many behaviors are simplified for clarity.
 
 The goal is to provide a *workbench* to understand key ideas, not a faithful reproduction.
-
----
-
-## Quick feature list
-
-* Floating, focusable, resizable **object outliners**
-* Slot types:
-
-  * read-only data slots
-  * read/write slots (`foo` and setter `foo:`)
-  * method slots (method templates with source + bytecode)
-  * parent slots (delegation)
-  * indexed slots (array-like storage ignored by lookup)
-* Block literals with inspectable instantiation and lexical parent
-* Evaluators embedded in outliners (source ↔ bytecode)
-* Reference connectors with endpoint circles and masking over focused outliner
-* `.selfieImage` export/import of VM image state
-* Single-file HTML saving (TiddlyWiki-style)
 
 ---
 
